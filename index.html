@@ -1,34 +1,198 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <!-- 1. Leaflet CSS goes inside <head> -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Riverine Pollution Tracker</title>
+
+  <!-- Leaflet Map Styles -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
+
   <style>
-    /* Map container MUST have a defined height or it will be invisible */
-    #map { height: 300px; width: 100%; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f1720;
+      color: #e6edf3;
+    }
+    .wrap {
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      text-align: center;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 6px; }
+    p.subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 24px; }
+    
+    /* --- STEP 1: HOME UPLOAD CARD --- */
+    .upload-card {
+      background: #161b22;
+      border: 2px dashed #30363d;
+      border-radius: 12px;
+      padding: 40px 16px;
+      margin-top: 20px;
+    }
+    .upload-btn {
+      display: inline-block;
+      padding: 16px 32px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: #1f6feb;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* --- STEP 2: MAP VIEW (Hidden until photo is chosen) --- */
+    #map-section {
+      display: none;
+    }
+    .instruction-bar {
+      background: #161b22;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #30363d;
+      font-size: 0.95rem;
+      color: #58a6ff;
+      font-weight: 500;
+    }
+    #map {
+      height: 380px;
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+    .reset-btn {
+      margin-top: 16px;
+      padding: 12px 24px;
+      background: transparent;
+      border: 1px solid #30363d;
+      color: #e6edf3;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
 
-  <!-- 2. HTML map container -->
-  <div id="map"></div>
+  <div class="wrap">
+    <h1>Riverine Pollution Tracker</h1>
+    <p class="subtitle">Upload a photo first, then choose where to place it on the map.</p>
 
-  <!-- 3. Leaflet JS Library goes near the bottom of <body> -->
+    <!-- STEP 1: HOME PAGE (IMAGE INPUT) -->
+    <div id="upload-section">
+      <div class="upload-card">
+        <label class="upload-btn">
+          📷 Select / Take Photo
+          <input type="file" id="photoInput" accept="image/*" style="display: none;" />
+        </label>
+      </div>
+    </div>
+
+    <!-- STEP 2: MAP PLACEMENT VIEW -->
+    <div id="map-section">
+      <div class="instruction-bar" id="instruction">
+        👇 Click anywhere on the map to place your photo!
+      </div>
+
+      <div id="map"></div>
+
+      <button class="reset-btn" onclick="resetApp()">← Upload Another Photo</button>
+    </div>
+  </div>
+
+  <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- 4. Your custom script that creates the map -->
   <script>
-    // Initialize map on latitude/longitude (London in this example)
-    const map = L.map('map').setView([51.505, -0.09], 13);
+    let mapInstance = null;
+    let selectedImageUrl = null;
 
-    // Load OpenStreetMap imagery tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    const uploadSection = document.getElementById('upload-section');
+    const mapSection = document.getElementById('map-section');
+    const photoInput = document.getElementById('photoInput');
+    const instruction = document.getElementById('instruction');
 
-    // Add a pin marker with a popup
-    L.marker([51.505, -0.09]).addTo(map).bindPopup('Hello World!');
+    // 1. Listen for Image Selection
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Generate local object URL for preview
+      selectedImageUrl = URL.createObjectURL(file);
+
+      // Hide home upload card and show map view
+      uploadSection.style.display = 'none';
+      mapSection.style.display = 'block';
+
+      // Initialize Map
+      initMap();
+    });
+
+    // 2. Initialize Leaflet Map
+    function initMap() {
+      if (mapInstance) {
+        mapInstance.invalidateSize();
+        return;
+      }
+
+      // Default view centered on a global map scale
+      mapInstance = L.map('map').setView([20, 0], 2);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      // 3. LISTEN FOR CLICKS ON THE MAP
+      mapInstance.on('click', (event) => {
+        const { lat, lng } = event.latlng;
+
+        // Custom circular marker with photo thumbnail
+        const photoIcon = L.divIcon({
+          className: 'custom-photo-pin',
+          html: `
+            <div style="
+              background-image: url('${selectedImageUrl}');
+              width: 48px;
+              height: 48px;
+              background-size: cover;
+              background-position: center;
+              border-radius: 50%;
+              border: 3px solid #1f6feb;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            "></div>
+          `,
+          iconSize: [48, 48],
+          iconAnchor: [24, 24]
+        });
+
+        // Place marker at clicked position
+        L.marker([lat, lng], { icon: photoIcon })
+          .addTo(mapInstance)
+          .bindPopup(`
+            <div style="text-align: center; padding: 4px;">
+              <img src="${selectedImageUrl}" style="width: 140px; border-radius: 6px; margin-bottom: 6px;" />
+              <br /><strong>Pollution Spotting</strong>
+              <br /><span style="font-size:0.75rem; color:#8b949e;">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+            </div>
+          `)
+          .openPopup();
+
+        instruction.innerText = '✅ Photo pinned! Click anywhere else to move it or add more.';
+      });
+    }
+
+    // 4. Reset Back to Home Screen
+    function resetApp() {
+      photoInput.value = '';
+      selectedImageUrl = null;
+      mapSection.style.display = 'none';
+      uploadSection.style.display = 'block';
+      instruction.innerText = '👇 Click anywhere on the map to place your photo!';
+    }
   </script>
 
 </body>
