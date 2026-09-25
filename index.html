@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Riverine Pollution Tracker</title>
+
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f1720;
+      color: #e6edf3;
+    }
+    .wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 24px; }
+    .shootButton {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: #1f6feb;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .result img {
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 16px;
+    }
+    .meta { 
+      font-size: 0.85rem; 
+      opacity: 0.8; 
+      margin-top: 12px;
+    }
+    .meta.error {
+      color: #f85149;
+    }
+    #map {
+      height: 280px;
+      width: 100%;
+      border-radius: 10px;
+      margin-top: 16px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <h1>Riverine Pollution Tracker</h1>
+
+    <label class="shootButton">
+      Take / Upload Photo
+      <input type="file" accept="image/*" id="photoInput" style="display: none;" />
+    </label>
+
+    <div class="result">
+      <img id="photoPreview" style="display: none;" alt="Uploaded Photo" />
+    </div>
+
+    <p id="statusMsg" class="meta"></p>
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    let mapInstance = null;
+
+    const photoInput = document.getElementById('photoInput');
+    const photoPreview = document.getElementById('photoPreview');
+    const statusMsg = document.getElementById('statusMsg');
+    const mapDiv = document.getElementById('map');
+
+    photoInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Reset previous state
+      photoPreview.src = URL.createObjectURL(file);
+      photoPreview.style.display = 'block';
+      statusMsg.className = 'meta';
+      statusMsg.innerText = 'Finding location...';
+      mapDiv.style.display = 'none';
+
+      if (!navigator.geolocation) {
+        statusMsg.className = 'meta error';
+        statusMsg.innerText = 'Geolocation is not supported by your browser.';
+        return;
+      }
+
+      navigator.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const accuracy = Math.round(pos.coords.accuracy);
+
+          statusMsg.innerText = `Coordinates: ${lat.toFixed(5)}, ${lng.toFixed(5)} (±${accuracy}m accuracy)`;
+          
+          // Render Map
+          renderMap(lat, lng, accuracy);
+        },
+        (err) => {
+          statusMsg.className = 'meta error';
+          if (err.code === 1) statusMsg.innerText = 'Location permission denied.';
+          else if (err.code === 2) statusMsg.innerText = 'Location position unavailable.';
+          else if (err.code === 3) statusMsg.innerText = 'Location request timed out.';
+          else statusMsg.innerText = 'Error getting location.';
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+
+    function renderMap(lat, lng, accuracy) {
+      mapDiv.style.display = 'block';
+
+      if (mapInstance) {
+        mapInstance.remove();
+      }
+
+      mapInstance = L.map('map').setView([lat, lng], 15);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapInstance);
+
+      L.marker([lat, lng]).addTo(mapInstance)
+        .bindPopup(`Photo Location<br>±${accuracy}m accuracy`)
+        .openPopup();
+
+      L.circle([lat, lng], {
+        radius: accuracy,
+        color: '#1f6feb',
+        fillColor: '#1f6feb',
+        fillOpacity: 0.15
+      }).addTo(mapInstance);
+    }
+  </script>
+
+</body>
+</html>
