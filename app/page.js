@@ -5,7 +5,7 @@ import { useState } from 'react';
 export default function PhotoUploader() {
   const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [coord, setCoords] = useState(null);
+  const [coords, setCoords] = useState(null);
   const [locError, setLocError] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -30,7 +30,7 @@ export default function PhotoUploader() {
 
     setIsLocating(true);
 
-    navigator.getCurrentPosition(
+    navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCoords({
           lat: pos.coords.latitude,
@@ -62,14 +62,15 @@ export default function PhotoUploader() {
   return (
     <div className="wrap">
       <h1>Photo & Location Tracker</h1>
-      
+
       <label className="shootButton">
         Take / Upload Photo
-        <input 
-          type="file" 
-          accept="image/*" 
-          onChange={chosenPhoto} 
-          style={{ display: 'none' }} 
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={chosenPhoto}
+          style={{ display: 'none' }}
         />
       </label>
 
@@ -81,9 +82,9 @@ export default function PhotoUploader() {
 
       {isLocating && <p className="meta">Finding Location...</p>}
 
-      {coord && (
+      {coords && (
         <p className="meta">
-          {coord.lat.toFixed(5)}, {coord.lng.toFixed(5)} ({Math.round(coord.accuracy)}m accuracy)
+          {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} ({Math.round(coords.accuracy)}m accuracy)
         </p>
       )}
 
