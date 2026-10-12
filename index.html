@@ -44,7 +44,7 @@
       cursor: pointer;
     }
 
-    /* --- STEP 2: MAP VIEW (Hidden until photo is chosen) --- */
+    /* --- STEP 2: MAP VIEW --- */
     #map-section {
       display: none;
     }
@@ -64,15 +64,29 @@
       border-radius: 10px;
       margin-top: 8px;
     }
-    .reset-btn {
+    .action-row {
+      display: flex;
+      gap: 10px;
       margin-top: 16px;
-      padding: 12px 24px;
-      background: transparent;
-      border: 1px solid #30363d;
-      color: #e6edf3;
+    }
+    .primary-btn, .reset-btn {
+      flex: 1;
+      padding: 12px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .primary-btn {
+      background: #238636;
+      border: none;
+      color: white;
+      display: none; /* Hidden until a location is clicked */
+    }
+    .reset-btn {
+      background: transparent;
+      border: 1px solid #30363d;
+      color: #e6edf3;
     }
   </style>
 </head>
@@ -80,7 +94,7 @@
 
   <div class="wrap">
     <h1>Riverine Pollution Tracker</h1>
-    <p class="subtitle">Upload a photo first, then choose where to place it on the map.</p>
+    <p class="subtitle">Upload a photo, pick your exact location, and confirm.</p>
 
     <!-- STEP 1: HOME PAGE (IMAGE INPUT) -->
     <div id="upload-section">
@@ -95,12 +109,15 @@
     <!-- STEP 2: MAP PLACEMENT VIEW -->
     <div id="map-section">
       <div class="instruction-bar" id="instruction">
-        👇 Click anywhere on the map to place your photo!
+        👇 Click anywhere on the map to place your pin.
       </div>
 
       <div id="map"></div>
 
-      <button class="reset-btn" onclick="resetApp()">← Upload Another Photo</button>
+      <div class="action-row">
+        <button class="reset-btn" onclick="resetApp()">← Cancel</button>
+        <button id="confirmBtn" class="primary-btn" onclick="confirmLocation()">Confirm Location ✅</button>
+      </div>
     </div>
   </div>
 
@@ -110,25 +127,25 @@
   <script>
     let mapInstance = null;
     let selectedImageUrl = null;
+    let tempMarker = null;
+    let selectedCoords = null;
 
     const uploadSection = document.getElementById('upload-section');
     const mapSection = document.getElementById('map-section');
     const photoInput = document.getElementById('photoInput');
     const instruction = document.getElementById('instruction');
+    const confirmBtn = document.getElementById('confirmBtn');
 
     // 1. Listen for Image Selection
     photoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      // Generate local object URL for preview
       selectedImageUrl = URL.createObjectURL(file);
 
-      // Hide home upload card and show map view
       uploadSection.style.display = 'none';
       mapSection.style.display = 'block';
 
-      // Initialize Map
       initMap();
     });
 
@@ -139,18 +156,21 @@
         return;
       }
 
-      // Default view centered on a global map scale
       mapInstance = L.map('map').setView([20, 0], 2);
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // 3. LISTEN FOR CLICKS ON THE MAP
+      // 3. LISTEN FOR CLICKS ON THE MAP (Single Marker Mode)
       mapInstance.on('click', (event) => {
-        const { lat, lng } = event.latlng;
+        selectedCoords = event.latlng;
 
-        // Custom circular marker with photo thumbnail
+        // Remove previous temporary marker if it exists
+        if (tempMarker) {
+          mapInstance.removeLayer(tempMarker);
+        }
+
         const photoIcon = L.divIcon({
           className: 'custom-photo-pin',
           html: `
@@ -169,29 +189,36 @@
           iconAnchor: [24, 24]
         });
 
-        // Place marker at clicked position
-        L.marker([lat, lng], { icon: photoIcon })
-          .addTo(mapInstance)
-          .bindPopup(`
-            <div style="text-align: center; padding: 4px;">
-              <img src="${selectedImageUrl}" style="width: 140px; border-radius: 6px; margin-bottom: 6px;" />
-              <br /><strong>Pollution Spotting</strong>
-              <br /><span style="font-size:0.75rem; color:#8b949e;">${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
-            </div>
-          `)
-          .openPopup();
+        // Place a single movable marker
+        tempMarker = L.marker([selectedCoords.lat, selectedCoords.lng], { icon: photoIcon }).addTo(mapInstance);
 
-        instruction.innerText = '✅ Photo pinned! Click anywhere else to move it or add more.';
+        instruction.innerText = '📍 Pin placed! Click elsewhere to adjust, or hit Confirm.';
+        confirmBtn.style.display = 'block';
       });
     }
 
-    // 4. Reset Back to Home Screen
+    // 4. Confirm Location (Ready to send data to your backend/storage)
+    function confirmLocation() {
+      if (!selectedCoords) return;
+
+      alert(`Location confirmed at: ${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)}!\n(Next step: Send this data & image to your backend database so other devices can view it.)`);
+      
+      resetApp();
+    }
+
+    // 5. Reset Back to Home Screen
     function resetApp() {
+      if (tempMarker && mapInstance) {
+        mapInstance.removeLayer(tempMarker);
+        tempMarker = null;
+      }
       photoInput.value = '';
       selectedImageUrl = null;
+      selectedCoords = null;
+      confirmBtn.style.display = 'none';
       mapSection.style.display = 'none';
       uploadSection.style.display = 'block';
-      instruction.innerText = '👇 Click anywhere on the map to place your photo!';
+      instruction.innerText = '👇 Click anywhere on the map to place your pin.';
     }
   </script>
 
