@@ -8,6 +8,11 @@
   <!-- Leaflet Map Styles -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
+  <!-- FIREBASE SDKs (Required for backend connection) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+
   <style>
     * { box-sizing: border-box; }
     body {
@@ -81,12 +86,23 @@
       background: #238636;
       border: none;
       color: white;
-      display: none; /* Hidden until a location is clicked */
+      display: none; /* Hidden until location is clicked */
     }
     .reset-btn {
       background: transparent;
       border: 1px solid #30363d;
       color: #e6edf3;
+    }
+    .delete-btn {
+      background: #da3633;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-top: 8px;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -125,7 +141,23 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-1NCjWQQWjtzfyMdUFplhYHsw9dHZCKQ",
+      authDomain: "cleanly-ca8c5.firebaseapp.com",
+      projectId: "cleanly-ca8c5",
+      storageBucket: "cleanly-ca8c5.firebasestorage.app",
+      messagingSenderId: "293838772615",
+      appId: "1:293838772615:web:22cb309094990371425b22",
+      measurementId: "G-R2VYSJ7GNN"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
     let mapInstance = null;
+    let selectedFile = null;
     let selectedImageUrl = null;
     let tempMarker = null;
     let selectedCoords = null;
@@ -136,11 +168,12 @@
     const instruction = document.getElementById('instruction');
     const confirmBtn = document.getElementById('confirmBtn');
 
-    // 1. Listen for Image Selection
+    // 2. Listen for Image Selection
     photoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
+      selectedFile = file;
       selectedImageUrl = URL.createObjectURL(file);
 
       uploadSection.style.display = 'none';
@@ -149,10 +182,11 @@
       initMap();
     });
 
-    // 2. Initialize Leaflet Map
+    // 3. Initialize Leaflet Map
     function initMap() {
       if (mapInstance) {
         mapInstance.invalidateSize();
+        loadAllPins();
         return;
       }
 
@@ -162,11 +196,11 @@
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(mapInstance);
 
-      // 3. LISTEN FOR CLICKS ON THE MAP (Single Marker Mode)
+      loadAllPins();
+
       mapInstance.on('click', (event) => {
         selectedCoords = event.latlng;
 
-        // Remove previous temporary marker if it exists
         if (tempMarker) {
           mapInstance.removeLayer(tempMarker);
         }
@@ -189,7 +223,6 @@
           iconAnchor: [24, 24]
         });
 
-        // Place a single movable marker
         tempMarker = L.marker([selectedCoords.lat, selectedCoords.lng], { icon: photoIcon }).addTo(mapInstance);
 
         instruction.innerText = '📍 Pin placed! Click elsewhere to adjust, or hit Confirm.';
@@ -197,28 +230,114 @@
       });
     }
 
-    // 4. Confirm Location (Ready to send data to your backend/storage)
-    function confirmLocation() {
-      if (!selectedCoords) return;
+    // 4. Confirm Location & Upload to Firebase Backend
+    async function confirmLocation() {
+      if (!selectedCoords || !selectedFile) return;
 
-      alert(`Location confirmed at: ${selectedCoords.lat.toFixed(4)}, ${selectedCoords.lng.toFixed(4)}!\n(Next step: Send this data & image to your backend database so other devices can view it.)`);
-      
-      resetApp();
+      confirmBtn.innerText = "Uploading...";
+      confirmBtn.disabled = true;
+
+      try {
+        const storageRef = storage.ref().child(`pollution_images/${Date.now()}_${selectedFile.name}`);
+        const snapshot = await storageRef.put(selectedFile);
+        const downloadUrl = await snapshot.ref.getDownloadURL();
+
+        await db.collection("reports").add({
+          lat: selectedCoords.lat,
+          lng: selectedCoords.lng,
+          imageUrl: downloadUrl,
+          imagePath: storageRef.fullPath,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert("Report successfully uploaded and synced!");
+        resetApp();
+      } catch (error) {
+        console.error("Error uploading report: ", error);
+        alert("Upload failed. Check your configuration.");
+      } finally {
+        confirmBtn.innerText = "Confirm Location ✅";
+        confirmBtn.disabled = false;
+      }
     }
 
-    // 5. Reset Back to Home Screen
+    // 5. Load All Pins from Backend
+    function loadAllPins() {
+      db.collection("reports").get().then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const docId = doc.id;
+
+          const photoIcon = L.divIcon({
+            className: 'custom-photo-pin',
+            html: `
+              <div style="
+                background-image: url('${data.imageUrl}');
+                width: 40px;
+                height: 40px;
+                background-size: cover;
+                background-position: center;
+                border-radius: 50%;
+                border: 2px solid #238636;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+              "></div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+          });
+
+          L.marker([data.lat, data.lng], { icon: photoIcon })
+            .addTo(mapInstance)
+            .bindPopup(`
+              <div style="text-align: center; padding: 4px;">
+                <img src="${data.imageUrl}" style="width: 140px; border-radius: 6px; margin-bottom: 6px;" />
+                <br /><strong>Pollution Report</strong>
+                <br /><span style="font-size:0.75rem; color:#8b949e;">${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}</span>
+                <br /><button class="delete-btn" onclick="deleteReport('${docId}', '${data.imagePath}')">🗑️ Remove Pin (Mod)</button>
+              </div>
+            `);
+        });
+      });
+    }
+
+    // 6. Moderator Deletion Logic
+    async function deleteReport(docId, imagePath) {
+      const passcode = prompt("Enter moderator passcode:");
+      if (passcode !== "admin123") {
+        if (passcode !== null) alert("Incorrect passcode.");
+        return;
+      }
+
+      if (!confirm("Permanently delete this report?")) return;
+
+      try {
+        if (imagePath) {
+          await storage.ref().child(imagePath).delete();
+        }
+        await db.collection("reports").doc(docId).delete();
+        alert("Report deleted.");
+        location.reload();
+      } catch (error) {
+        console.error("Error deleting: ", error);
+        alert("Failed to delete.");
+      }
+    }
+
+    // 7. Reset App State
     function resetApp() {
       if (tempMarker && mapInstance) {
         mapInstance.removeLayer(tempMarker);
         tempMarker = null;
       }
       photoInput.value = '';
+      selectedFile = null;
       selectedImageUrl = null;
       selectedCoords = null;
       confirmBtn.style.display = 'none';
       mapSection.style.display = 'none';
       uploadSection.style.display = 'block';
       instruction.innerText = '👇 Click anywhere on the map to place your pin.';
+      if (mapInstance) loadAllPins();
     }
   </script>
 
