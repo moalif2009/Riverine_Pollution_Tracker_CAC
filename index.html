@@ -8,11 +8,6 @@
   <!-- Leaflet Map Styles -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <!-- FIREBASE SDKs (Required for backend connection) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
-
   <style>
     * { box-sizing: border-box; }
     body {
@@ -30,7 +25,6 @@
     h1 { font-size: 1.5rem; margin-bottom: 6px; }
     p.subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 24px; }
     
-    /* --- STEP 1: HOME UPLOAD CARD --- */
     .upload-card {
       background: #161b22;
       border: 2px dashed #30363d;
@@ -48,11 +42,7 @@
       border-radius: 8px;
       cursor: pointer;
     }
-
-    /* --- STEP 2: MAP VIEW --- */
-    #map-section {
-      display: none;
-    }
+    #map-section { display: none; }
     .instruction-bar {
       background: #161b22;
       padding: 12px;
@@ -86,7 +76,7 @@
       background: #238636;
       border: none;
       color: white;
-      display: none; /* Hidden until location is clicked */
+      display: none;
     }
     .reset-btn {
       background: transparent;
@@ -112,7 +102,6 @@
     <h1>Riverine Pollution Tracker</h1>
     <p class="subtitle">Upload a photo, pick your exact location, and confirm.</p>
 
-    <!-- STEP 1: HOME PAGE (IMAGE INPUT) -->
     <div id="upload-section">
       <div class="upload-card">
         <label class="upload-btn">
@@ -122,14 +111,11 @@
       </div>
     </div>
 
-    <!-- STEP 2: MAP PLACEMENT VIEW -->
     <div id="map-section">
       <div class="instruction-bar" id="instruction">
         👇 Click anywhere on the map to place your pin.
       </div>
-
       <div id="map"></div>
-
       <div class="action-row">
         <button class="reset-btn" onclick="resetApp()">← Cancel</button>
         <button id="confirmBtn" class="primary-btn" onclick="confirmLocation()">Confirm Location ✅</button>
@@ -140,7 +126,15 @@
   <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Firebase App (Compat SDKs for Vanilla HTML/JS) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
+
   <script>
+    // ==========================================
+    // YOUR FIREBASE CONFIGURATION (Integrated)
+    // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyB-1NCjWQQWjtzfyMdUFplhYHsw9dHZCKQ",
       authDomain: "cleanly-ca8c5.firebaseapp.com",
@@ -152,13 +146,12 @@
     };
 
     // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
+    const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const storage = firebase.storage();
+    const analytics = firebase.analytics(); // Analytics initialized
 
     let mapInstance = null;
-    let selectedFile = null;
-    let selectedImageUrl = null;
+    let selectedBase64 = null;
     let tempMarker = null;
     let selectedCoords = null;
 
@@ -168,21 +161,24 @@
     const instruction = document.getElementById('instruction');
     const confirmBtn = document.getElementById('confirmBtn');
 
-    // 2. Listen for Image Selection
+    // 1. Listen for Image Selection & Convert to Base64
     photoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
 
-      selectedFile = file;
-      selectedImageUrl = URL.createObjectURL(file);
+      const reader = new FileReader();
+      reader.onload = function(uploadEvent) {
+        selectedBase64 = uploadEvent.target.result;
 
-      uploadSection.style.display = 'none';
-      mapSection.style.display = 'block';
+        uploadSection.style.display = 'none';
+        mapSection.style.display = 'block';
 
-      initMap();
+        initMap();
+      };
+      reader.readAsDataURL(file);
     });
 
-    // 3. Initialize Leaflet Map
+    // 2. Initialize Leaflet Map
     function initMap() {
       if (mapInstance) {
         mapInstance.invalidateSize();
@@ -209,7 +205,7 @@
           className: 'custom-photo-pin',
           html: `
             <div style="
-              background-image: url('${selectedImageUrl}');
+              background-image: url('${selectedBase64}');
               width: 48px;
               height: 48px;
               background-size: cover;
@@ -230,38 +226,33 @@
       });
     }
 
-    // 4. Confirm Location & Upload to Firebase Backend
+    // 3. Save Data Directly to Firestore Database
     async function confirmLocation() {
-      if (!selectedCoords || !selectedFile) return;
+      if (!selectedCoords || !selectedBase64) return;
 
-      confirmBtn.innerText = "Uploading...";
+      confirmBtn.innerText = "Saving to DB...";
       confirmBtn.disabled = true;
 
       try {
-        const storageRef = storage.ref().child(`pollution_images/${Date.now()}_${selectedFile.name}`);
-        const snapshot = await storageRef.put(selectedFile);
-        const downloadUrl = await snapshot.ref.getDownloadURL();
-
         await db.collection("reports").add({
           lat: selectedCoords.lat,
           lng: selectedCoords.lng,
-          imageUrl: downloadUrl,
-          imagePath: storageRef.fullPath,
+          imageUrl: selectedBase64,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert("Report successfully uploaded and synced!");
+        alert("Report successfully saved and synced across devices!");
         resetApp();
       } catch (error) {
-        console.error("Error uploading report: ", error);
-        alert("Upload failed. Check your configuration.");
+        console.error("Error saving report: ", error);
+        alert("Failed to save. Check your Firestore rules.");
       } finally {
         confirmBtn.innerText = "Confirm Location ✅";
         confirmBtn.disabled = false;
       }
     }
 
-    // 5. Load All Pins from Backend
+    // 4. Load All Pins from Firestore
     function loadAllPins() {
       db.collection("reports").get().then((querySnapshot) => {
         querySnapshot.forEach((doc) => {
@@ -293,15 +284,15 @@
                 <img src="${data.imageUrl}" style="width: 140px; border-radius: 6px; margin-bottom: 6px;" />
                 <br /><strong>Pollution Report</strong>
                 <br /><span style="font-size:0.75rem; color:#8b949e;">${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}</span>
-                <br /><button class="delete-btn" onclick="deleteReport('${docId}', '${data.imagePath}')">🗑️ Remove Pin (Mod)</button>
+                <br /><button class="delete-btn" onclick="deleteReport('${docId}')">🗑️ Remove Pin (Mod)</button>
               </div>
             `);
         });
       });
     }
 
-    // 6. Moderator Deletion Logic
-    async function deleteReport(docId, imagePath) {
+    // 5. Moderator Deletion Logic
+    async function deleteReport(docId) {
       const passcode = prompt("Enter moderator passcode:");
       if (passcode !== "admin123") {
         if (passcode !== null) alert("Incorrect passcode.");
@@ -311,9 +302,6 @@
       if (!confirm("Permanently delete this report?")) return;
 
       try {
-        if (imagePath) {
-          await storage.ref().child(imagePath).delete();
-        }
         await db.collection("reports").doc(docId).delete();
         alert("Report deleted.");
         location.reload();
@@ -323,15 +311,14 @@
       }
     }
 
-    // 7. Reset App State
+    // 6. Reset App State
     function resetApp() {
       if (tempMarker && mapInstance) {
         mapInstance.removeLayer(tempMarker);
         tempMarker = null;
       }
       photoInput.value = '';
-      selectedFile = null;
-      selectedImageUrl = null;
+      selectedBase64 = null;
       selectedCoords = null;
       confirmBtn.style.display = 'none';
       mapSection.style.display = 'none';
