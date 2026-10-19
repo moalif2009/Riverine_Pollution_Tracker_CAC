@@ -5,7 +5,7 @@
 // ==========================================
 const TEXT = {
   appName: 'Riverine Pollution Tracker',
-  appTagline: 'Chattahoochee River · Atlanta',
+  appTagline: 'Atlanta · Chattahoochee watershed',
 
   legendReported: 'Reported',
   legendSent: 'Sent to agency',
@@ -24,6 +24,10 @@ const TEXT = {
   photoChange: 'Change photo',
   locationLabel: 'Location',
   categoryLabel: 'Pollution type',
+  categoryPlaceholder: 'Choose a type',
+  sizeLabel: 'How big is it?',
+  sizePlaceholder: 'Choose a size',
+  sizeHint: 'Report problems too big for one person to clean up, not a single piece of litter.',
   submit: 'Submit report',
   saving: 'Saving…',
 
@@ -45,6 +49,7 @@ const TEXT = {
   actionIntroNew: 'Report saved. Send it to someone who can act on it.',
   actionIntroExisting: 'Send this report to someone who can act on it.',
   alreadySentTo: 'Already sent to:',
+  recommended: 'Recommended',
   riverkeeperBtn: 'Email Chattahoochee Riverkeeper',
   riverkeeperNote: 'Opens your email app with the report filled in.',
   atl311Btn: 'Report to ATL311',
@@ -57,6 +62,7 @@ const TEXT = {
   popupStatus: 'Status',
   popupReportedOn: 'Reported',
   popupSentTo: 'Sent to',
+  popupSize: 'Size',
   popupTakeAction: 'Take action',
   popupResolve: 'Mark resolved',
   popupDelete: 'Remove',
@@ -92,9 +98,11 @@ const TEXT = {
   open311: 'Open ATL311',
 
   // Text sent to agencies
+  // r.category and r.size are the display labels
   reportEmailSubject: (category) => `Pollution report: ${category}`,
   reportBody: (r) =>
     `Pollution report: ${r.category}\n` +
+    (r.size ? `Size: ${r.size}\n` : '') +
     `Location: ${r.lat.toFixed(6)}, ${r.lng.toFixed(6)}\n` +
     `Map: https://www.google.com/maps?q=${r.lat},${r.lng}\n\n` +
     `Submitted through the Riverine Pollution Tracker.`
@@ -108,9 +116,28 @@ const STATUS_LABELS = {
 };
 
 // Pollution categories. "value" is stored in Firestore; "label" is what people see.
+// Keep the first four values as they are: existing reports use them.
+// "agencies" are recommended in the Take action panel, in order
+// (riverkeeper = Chattahoochee Riverkeeper, atl311 = ATL311, epd = GA EPD).
 const CATEGORIES = [
-  { value: 'Plastic Waste', label: 'Plastic / Solid Waste' },
-  { value: 'Chemical / Discoloration', label: 'Chemical Spill / Discoloration' },
-  { value: 'Illegal Dumping', label: 'Illegal Dumping / Debris' },
-  { value: 'Sewage / Runoff', label: 'Sewage / Urban Runoff' }
+  // Water
+  { group: 'Water', value: 'Sewage / Runoff', label: 'Sewage overflow or leak', agencies: ['atl311', 'riverkeeper', 'epd'] },
+  { group: 'Water', value: 'Chemical / Discoloration', label: 'Oil, chemical, or discolored water', agencies: ['epd', 'riverkeeper'] },
+  { group: 'Water', value: 'Trash in Waterway', label: 'Trash in a river, creek, or storm drain', agencies: ['riverkeeper', 'atl311'] },
+  { group: 'Water', value: 'Construction Runoff', label: 'Muddy runoff from a construction site', agencies: ['atl311', 'riverkeeper', 'epd'] },
+  { group: 'Water', value: 'Fish Kill', label: 'Dead fish or wildlife', agencies: ['epd', 'riverkeeper'] },
+  // Land
+  { group: 'Land', value: 'Illegal Dumping', label: 'Illegal dumping (tires, furniture, debris)', agencies: ['atl311', 'epd'] },
+  { group: 'Land', value: 'Plastic Waste', label: 'Large buildup of trash or plastic', agencies: ['atl311'] },
+  { group: 'Land', value: 'Hazardous Waste', label: 'Hazardous waste (drums, batteries, paint)', agencies: ['epd', 'atl311'] },
+  // Air
+  { group: 'Air', value: 'Open Burning', label: 'Open burning or heavy smoke', agencies: ['epd', 'atl311'] }
+];
+
+// Size choices. There is deliberately no option for a single item.
+const SIZES = [
+  { value: 'bags', label: "A few bags' worth" },
+  { value: 'truckload', label: 'A truckload or more' },
+  { value: 'large-area', label: 'Covers a large area' },
+  { value: 'ongoing', label: 'Ongoing leak, flow, or smoke' }
 ];

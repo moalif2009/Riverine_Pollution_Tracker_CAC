@@ -85,6 +85,11 @@ function statusBadge(status) {
   return `<span class="badge badge-${STATUS_CLASSES[status]}">${icon(STATUS_ICONS[status])}</span>`;
 }
 
+function sizeLabel(value) {
+  const match = SIZES.find((size) => size.value === value);
+  return match ? match.label : '';
+}
+
 function categoryLabel(value) {
   const match = CATEGORIES.find((c) => c.value === value);
   return match ? match.label : (value || TEXT.popupDefaultCategory);
@@ -121,8 +126,28 @@ function applyText() {
   });
   document.title = TEXT.appName;
 
+  // Category dropdown, grouped (Water / Land / Air), with an empty first choice
   const select = $('pollutionCategory');
-  CATEGORIES.forEach((c) => select.add(new Option(c.label, c.value)));
+  select.add(placeholderOption(TEXT.categoryPlaceholder));
+  CATEGORIES.forEach((c) => {
+    let group = [...select.children].find((g) => g.label === c.group);
+    if (!group) {
+      group = document.createElement('optgroup');
+      group.label = c.group;
+      select.appendChild(group);
+    }
+    group.appendChild(new Option(c.label, c.value));
+  });
+
+  const sizeSelect = $('pollutionSize');
+  sizeSelect.add(placeholderOption(TEXT.sizePlaceholder));
+  SIZES.forEach((size) => sizeSelect.add(new Option(size.label, size.value)));
+}
+
+function placeholderOption(label) {
+  const option = new Option(label, '', true, true);
+  option.disabled = true;
+  return option;
 }
 
 // ---------- Toasts & dialogs (instead of alert/prompt/confirm) ----------
@@ -453,14 +478,16 @@ photoInput.addEventListener('change', (e) => {
 
 function updateConfirmState() {
   if (confirmBtn.classList.contains('is-busy')) return;
-  confirmBtn.disabled = !(selectedBase64 && selectedCoords);
+  confirmBtn.disabled = !(selectedBase64 && selectedCoords &&
+    $('pollutionCategory').value && $('pollutionSize').value);
 }
 
 // ---------- 4. Save Data & Category to Firestore Database ----------
 async function confirmLocation() {
-  if (!selectedCoords || !selectedBase64) return;
-
   const category = $('pollutionCategory').value;
+  const size = $('pollutionSize').value;
+  if (!selectedCoords || !selectedBase64 || !category || !size) return;
+
   const cancelBtn = $('cancelBtn');
 
   setBusy(confirmBtn, true, TEXT.saving);
@@ -473,6 +500,7 @@ async function confirmLocation() {
       lng: selectedCoords.lng,
       imageUrl: selectedBase64,
       category: category,
+      size: size,
       status: "Reported",
       sentTo: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -484,6 +512,7 @@ async function confirmLocation() {
       lat: selectedCoords.lat,
       lng: selectedCoords.lng,
       category: category,
+      size: size,
       status: 'Reported',
       sentTo: []
     };
@@ -520,6 +549,7 @@ function popupHtml(id, data) {
       <div class="popup-body">
         <strong class="popup-title">${escapeHtml(categoryLabel(data.category))}</strong>
         <span class="status-chip status-${statusClass}">${statusBadge(status)}${escapeHtml(STATUS_LABELS[status])}</span>
+        ${sizeLabel(data.size) ? `<p class="popup-meta">${escapeHtml(TEXT.popupSize)}: ${escapeHtml(sizeLabel(data.size))}</p>` : ''}
         ${date ? `<p class="popup-meta">${escapeHtml(TEXT.popupReportedOn)} ${escapeHtml(date)}</p>` : ''}
         ${sentTo.length ? `<p class="popup-meta">${escapeHtml(TEXT.popupSentTo)}: ${escapeHtml(sentTo.join(', '))}</p>` : ''}
         <button class="primary-btn popup-action" type="button" data-action="take-action" data-id="${safeId}">${escapeHtml(TEXT.popupTakeAction)}</button>
@@ -641,6 +671,8 @@ function clearDraft() {
   photoPickerText.textContent = TEXT.photoPick;
   selectedBase64 = null;
   selectedCoords = null;
+  $('pollutionCategory').value = '';
+  $('pollutionSize').value = '';
   setLocStatus(TEXT.locIdle);
   updateConfirmState();
 }
@@ -660,10 +692,28 @@ function showActionPanel(isNew) {
   $('actionSummary').textContent =
     categoryLabel(currentReport.category) + ' · ' + STATUS_LABELS[normalizeStatus(currentReport.status)];
   updateSentTo();
+  showRecommendedAgencies(currentReport.category);
   reportForm.hidden = true;
   actionSection.hidden = false;
   reportBtn.hidden = true;
   sheet.hidden = false;
+}
+
+// Put the agencies recommended for this category first, tagged.
+// Unknown or older categories keep the default order with no tags.
+function showRecommendedAgencies(categoryValue) {
+  const list = $('agencyList');
+  const match = CATEGORIES.find((c) => c.value === categoryValue);
+  const recommended = match ? match.agencies : [];
+  const rows = [...list.querySelectorAll('[data-agency]')];
+  const defaultOrder = ['riverkeeper', 'atl311', 'epd'];
+  const rank = (key) => recommended.includes(key) ? recommended.indexOf(key) : 10 + defaultOrder.indexOf(key);
+
+  rows.sort((a, b) => rank(a.dataset.agency) - rank(b.dataset.agency))
+    .forEach((row) => {
+      row.querySelector('.agency-tag').hidden = !recommended.includes(row.dataset.agency);
+      list.appendChild(row);
+    });
 }
 
 function updateSentTo() {
@@ -696,6 +746,7 @@ async function openActionPanel(id) {
     lat: Number(data.lat),
     lng: Number(data.lng),
     category: data.category || TEXT.popupDefaultCategory,
+    size: data.size || '',
     status: normalizeStatus(data.status),
     sentTo: Array.isArray(data.sentTo) ? data.sentTo.slice() : []
   };
@@ -703,12 +754,12 @@ async function openActionPanel(id) {
 }
 
 function reportText(r) {
-  return TEXT.reportBody(r);
+  return TEXT.reportBody({ lat: r.lat, lng: r.lng, category: categoryLabel(r.category), size: sizeLabel(r.size) });
 }
 
 function sendToRiverkeeper() {
   if (!currentReport) return;
-  const subject = encodeURIComponent(TEXT.reportEmailSubject(currentReport.category));
+  const subject = encodeURIComponent(TEXT.reportEmailSubject(categoryLabel(currentReport.category)));
   const body = encodeURIComponent(reportText(currentReport));
   window.location.href = `mailto:${RIVERKEEPER_EMAIL}?subject=${subject}&body=${body}`;
   markSent(AGENCY_RIVERKEEPER);
@@ -797,6 +848,8 @@ $('locateBtn').addEventListener('click', locateUser);
 $('riverkeeperBtn').addEventListener('click', sendToRiverkeeper);
 $('atl311Btn').addEventListener('click', sendTo311);
 $('epdBtn').addEventListener('click', () => markSent(AGENCY_EPD));
+$('pollutionCategory').addEventListener('change', updateConfirmState);
+$('pollutionSize').addEventListener('change', updateConfirmState);
 confirmBtn.addEventListener('click', confirmLocation);
 
 initMap();
