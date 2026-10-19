@@ -13,18 +13,22 @@ https://riverine-pollution-tracker-cac.vercel.app
 
 ## Moderator setup (Firebase)
 
-Moderators sign in with Firebase Authentication. Only moderators can mark a
-report Resolved or delete it; the rules in `firestore.rules` enforce this.
+Moderators sign in with Google. Only moderators can mark a report Resolved
+or delete it; the rules in `firestore.rules` enforce this.
 
-1. **Enable sign-in:** Firebase console → Authentication → Sign-in method →
-   enable **Email/Password**.
-2. **Create a moderator account:** Authentication → Users → **Add user**.
-   Copy the new user's **User UID**.
-3. **Mark them as a moderator:** Firestore Database → Start collection
-   `admins` → Document ID = the UID → add any field (e.g. `role: "moderator"`).
-4. **Allow your website:** Authentication → Settings → Authorized domains →
+1. **Turn on Google sign-in:** Firebase console → Authentication →
+   Sign-in method → Google → Enable → pick a support email → Save.
+2. **Allow your website:** Authentication → Settings → Authorized domains →
    add `riverine-pollution-tracker-cac.vercel.app`.
-5. **Apply the rules:** Firestore Database → Rules → paste `firestore.rules`
-   → **Publish**.
+3. **Sign in once on the website:** tap a pin → Remove → Sign in with Google.
+   It will say "not a moderator". That's expected.
+4. **Copy your User UID:** Authentication → Users → copy the User UID next to
+   your Google email.
+5. **Mark yourself as a moderator:** Firestore Database → Data →
+   Start collection `admins` → Document ID = the UID → field `role` (string)
+   = `moderator` → Save.
+6. **Apply the rules:** Firestore Database → Rules → paste `firestore.rules`
+   → Publish.
 
-To remove a moderator, delete their document in `admins`.
+To add another moderator, they do step 3, then you repeat steps 4–5 with
+their UID. To remove one, delete their document in `admins`.

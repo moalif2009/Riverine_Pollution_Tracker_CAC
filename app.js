@@ -159,14 +159,11 @@ function showToast(message, type) {
   setTimeout(() => toast.remove(), 3900);
 }
 
-// Resolves with { email, password } (login), true (confirmed), or null (cancelled).
+// Resolves with true (confirmed) or null (cancelled).
 // onConfirm(value) may return an error message to keep the dialog open.
 function showDialog(opts) {
   const dialog = $('dialog');
   const form = $('dialogForm');
-  const login = $('dialogLogin');
-  const email = $('dialogEmail');
-  const password = $('dialogPassword');
   const textArea = $('dialogText');
   const error = $('dialogError');
   const confirm = $('dialogConfirm');
@@ -175,8 +172,6 @@ function showDialog(opts) {
   $('dialogTitle').textContent = opts.title;
   $('dialogMessage').textContent = opts.message || '';
   $('dialogMessage').hidden = !opts.message;
-  login.hidden = !opts.login;
-  password.value = '';
   textArea.hidden = !opts.text;
   textArea.value = opts.text || '';
   error.hidden = true;
@@ -197,7 +192,7 @@ function showDialog(opts) {
     const onSubmit = async (e) => {
       e.preventDefault();
       if (busy) return;
-      const value = opts.login ? { email: email.value.trim(), password: password.value } : true;
+      const value = true;
       if (opts.onConfirm) {
         busy = true;
         setBusy(confirm, true);
@@ -227,8 +222,7 @@ function showDialog(opts) {
     cancel.addEventListener('click', onCancel);
     dialog.addEventListener('cancel', onEscape);
     dialog.showModal();
-    if (opts.login) (email.value ? password : email).focus();
-    else if (opts.text) textArea.select();
+    if (opts.text) textArea.select();
     else confirm.focus();
   });
 }
@@ -627,9 +621,11 @@ auth.onAuthStateChanged(async (user) => {
   setModerator(await checkModerator(user));
 });
 
-async function signInModerator(email, password) {
+// Uses a pop-up window (redirect sign-in is unreliable on sites not hosted by Firebase).
+// Must be called straight from a click so the browser allows the pop-up.
+async function signInModerator() {
   try {
-    const result = await auth.signInWithEmailAndPassword(email, password);
+    const result = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
     if (!(await checkModerator(result.user))) {
       await auth.signOut();
       return TEXT.modNotModerator;
@@ -638,29 +634,33 @@ async function signInModerator(email, password) {
     return null;
   } catch (error) {
     console.error('Sign-in failed:', error);
-    if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found',
-         'auth/invalid-email', 'auth/missing-password'].includes(error.code)) {
-      return TEXT.modWrongLogin;
+    if (['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(error.code)) {
+      return TEXT.modCancelled;
     }
-    if (error.code === 'auth/too-many-requests') return TEXT.modTooManyTries;
+    if (error.code === 'auth/popup-blocked') return TEXT.modPopupBlocked;
+    if (error.code === 'auth/unauthorized-domain') return TEXT.modBadDomain;
     return TEXT.modSignInFailed;
   }
 }
 
-// One dialog signs in (if needed) and confirms the action.
-function moderatorDialog(opts) {
-  const needsLogin = !isModerator;
+// Signs in with Google first (if needed), then confirms the action.
+async function moderatorDialog(opts) {
+  if (!isModerator) {
+    const signedIn = await showDialog({
+      title: TEXT.modSignInTitle,
+      message: TEXT.modSignInMessage,
+      confirmText: TEXT.modSignInButton,
+      onConfirm: signInModerator
+    });
+    if (!signedIn) return null;
+  }
+
   return showDialog({
     title: opts.title,
-    message: needsLogin ? opts.message + ' ' + TEXT.modSignInHint : opts.message,
+    message: opts.message,
     confirmText: opts.confirmText,
     danger: opts.danger,
-    login: needsLogin,
-    onConfirm: async (value) => {
-      if (!isModerator) {
-        const loginError = await signInModerator(value.email, value.password);
-        if (loginError) return loginError;
-      }
+    onConfirm: async () => {
       try {
         await opts.run();
       } catch (error) {

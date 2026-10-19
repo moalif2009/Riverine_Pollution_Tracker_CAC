@@ -639,7 +639,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .dialog::backdrop { background: rgba(18, 56, 74, 0.45); }
 .dialog h2 { margin: 0 0 6px; font-size: 1.25rem; }
 .dialog p { margin: 0 0 14px; color: var(--ink-2); }
-.dialog-login label { display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: 600; }
 .dialog input, .dialog textarea {
   width: 100%;
   margin-bottom: 10px;
