@@ -44,6 +44,10 @@
         <p class="brand-tagline" data-text="appTagline"></p>
       </div>
     </div>
+    <div id="modBar" class="mod-bar" hidden>
+      <span data-text="modSignedIn"></span>
+      <button id="signOutBtn" class="link-btn" type="button" data-text="modSignOut"></button>
+    </div>
     <ul class="legend" aria-label="Map legend">
       <li><span class="badge badge-reported"><svg class="icon"><use href="#i-alert"/></svg></span><span data-text="legendReported"></span></li>
       <li><span class="badge badge-sent"><svg class="icon"><use href="#i-send"/></svg></span><span data-text="legendSent"></span></li>
@@ -163,7 +167,12 @@
     <form method="dialog" id="dialogForm">
       <h2 id="dialogTitle"></h2>
       <p id="dialogMessage"></p>
-      <input id="dialogInput" type="password" autocomplete="off" hidden />
+      <div id="dialogLogin" class="dialog-login" hidden>
+        <label for="dialogEmail" data-text="modEmail"></label>
+        <input id="dialogEmail" type="email" autocomplete="username" />
+        <label for="dialogPassword" data-text="modPassword"></label>
+        <input id="dialogPassword" type="password" autocomplete="current-password" />
+      </div>
       <textarea id="dialogText" rows="6" readonly hidden></textarea>
       <p id="dialogError" class="dialog-error" hidden></p>
       <div class="action-row">
@@ -179,6 +188,7 @@
   <!-- Firebase App & Firestore SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
 
   <!-- App text, then main app logic -->
