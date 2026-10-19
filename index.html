@@ -11,79 +11,91 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- All visible text comes from text.js (data-text="key") -->
 
   <header class="topbar">
-    <h1>Riverine Pollution Tracker</h1>
+    <h1 data-text="appName"></h1>
     <ul class="legend" aria-label="Map legend">
-      <li><span class="dot dot-reported"></span>Reported</li>
-      <li><span class="dot dot-sent"></span>Sent to agency</li>
-      <li><span class="dot dot-resolved"></span>Resolved</li>
+      <li><span class="dot dot-reported"></span><span data-text="legendReported"></span></li>
+      <li><span class="dot dot-sent"></span><span data-text="legendSent"></span></li>
+      <li><span class="dot dot-resolved"></span><span data-text="legendResolved"></span></li>
     </ul>
   </header>
 
   <main class="app">
     <div id="map"></div>
 
-    <button id="locateBtn" class="map-btn" type="button" title="Use my location" aria-label="Use my location">
-      ◎
-    </button>
+    <button id="locateBtn" class="map-btn" type="button" data-label="locateBtn">◎</button>
 
-    <button id="reportBtn" class="report-btn" type="button">Report pollution</button>
+    <button id="reportBtn" class="report-btn" type="button" data-text="reportBtn"></button>
 
     <!-- Bottom sheet (phones) / side panel (desktop) -->
     <aside id="sheet" class="sheet" hidden aria-labelledby="sheetTitle">
       <div class="sheet-header">
-        <h2 id="sheetTitle">New report</h2>
-        <button id="closeSheetBtn" class="icon-btn" type="button" aria-label="Close">✕</button>
+        <h2 id="sheetTitle"></h2>
+        <button id="closeSheetBtn" class="icon-btn" type="button" data-label="close">✕</button>
       </div>
 
       <!-- New report form -->
       <section id="report-form">
         <div class="field">
-          <span class="field-label">1. Photo</span>
-          <label class="photo-picker" id="photoPicker">
+          <span class="field-label">1. <span data-text="photoLabel"></span></span>
+          <label class="photo-picker">
             <img id="photoPreview" alt="" hidden />
-            <span id="photoPickerText">Take or choose a photo</span>
+            <span id="photoPickerText" data-text="photoPick"></span>
             <input type="file" id="photoInput" accept="image/*" class="visually-hidden" />
           </label>
         </div>
 
         <div class="field">
-          <span class="field-label">2. Location</span>
-          <p id="locStatus" class="loc-status">Tap the map to place the pin.</p>
-          <button id="useLocationBtn" class="secondary-btn" type="button">Use my location</button>
+          <span class="field-label">2. <span data-text="locationLabel"></span></span>
+          <p id="locStatus" class="loc-status" role="status" data-text="locIdle"></p>
+          <button id="useLocationBtn" class="secondary-btn" type="button" data-text="locateBtn"></button>
         </div>
 
         <div class="field">
-          <label class="field-label" for="pollutionCategory">3. Pollution type</label>
-          <select id="pollutionCategory">
-            <option value="Plastic Waste">Plastic / Solid Waste</option>
-            <option value="Chemical / Discoloration">Chemical Spill / Discoloration</option>
-            <option value="Illegal Dumping">Illegal Dumping / Debris</option>
-            <option value="Sewage / Runoff">Sewage / Urban Runoff</option>
-          </select>
+          <label class="field-label" for="pollutionCategory">3. <span data-text="categoryLabel"></span></label>
+          <select id="pollutionCategory"></select>
         </div>
 
         <div class="action-row">
-          <button id="cancelBtn" class="secondary-btn" type="button">Cancel</button>
-          <button id="confirmBtn" class="primary-btn" type="button" disabled>Submit report</button>
+          <button id="cancelBtn" class="secondary-btn" type="button" data-text="cancel"></button>
+          <button id="confirmBtn" class="primary-btn" type="button" disabled data-text="submit"></button>
         </div>
       </section>
 
-      <!-- Take action (shown after a report is saved) -->
+      <!-- Take action (after saving, or from any pin) -->
       <section id="action-section" hidden>
-        <p class="sheet-intro">Report saved. Send it to someone who can act on it.</p>
+        <p id="actionIntro" class="sheet-intro"></p>
+        <p id="actionSummary" class="action-summary"></p>
+        <p id="actionSentTo" class="action-sent-to" hidden></p>
 
-        <button class="primary-btn block" type="button" onclick="sendToRiverkeeper()">Email Chattahoochee Riverkeeper</button>
-        <button class="primary-btn block" type="button" onclick="sendTo311()">Report to ATL311</button>
-        <a href="tel:18002414113" onclick="markSent('Georgia EPD')" class="danger-btn block">
-          Spill or fish kill? Call GA EPD 24/7: (800) 241-4113
-        </a>
+        <button id="riverkeeperBtn" class="primary-btn block" type="button" data-text="riverkeeperBtn"></button>
+        <button id="atl311Btn" class="primary-btn block" type="button" data-text="atl311Btn"></button>
+        <a id="epdBtn" href="tel:18002414113" class="danger-btn block" data-text="epdBtn"></a>
 
-        <button id="doneBtn" class="secondary-btn block" type="button">Done</button>
+        <button id="doneBtn" class="secondary-btn block" type="button" data-text="done"></button>
       </section>
     </aside>
   </main>
+
+  <!-- In-app dialog (replaces alert/prompt/confirm) -->
+  <dialog id="dialog" class="dialog">
+    <form method="dialog" id="dialogForm">
+      <h2 id="dialogTitle"></h2>
+      <p id="dialogMessage"></p>
+      <input id="dialogInput" type="password" autocomplete="off" hidden />
+      <textarea id="dialogText" rows="6" readonly hidden></textarea>
+      <p id="dialogError" class="dialog-error" hidden></p>
+      <div class="action-row">
+        <button id="dialogCancel" class="secondary-btn" type="button"></button>
+        <button id="dialogConfirm" class="primary-btn" type="submit"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Toast messages -->
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -93,7 +105,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
 
-  <!-- Main App Logic Script -->
+  <!-- App text, then main app logic -->
+  <script src="text.js"></script>
   <script src="app.js"></script>
 
 </body>
