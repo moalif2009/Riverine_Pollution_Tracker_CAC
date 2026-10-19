@@ -1,0 +1,73 @@
+rules_version = '2';
+
+// Security rules for the "reports" collection.
+// Apply in the Firebase console: Firestore Database > Rules > paste > Publish.
+//
+// - Anyone can read reports and create a new, valid report.
+// - Anyone can mark a report "Sent to agency" and add an agency to sentTo.
+// - Only moderators can mark a report "Resolved" or delete it.
+//   A moderator is a signed-in user with a document at admins/{their uid}.
+//
+// If you add a category or size in text.js, add its value here too.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidAgencyList(list) {
+      return list is list &&
+        list.size() <= 3 &&
+        list.toSet().hasOnly(['Chattahoochee Riverkeeper', 'ATL311', 'Georgia EPD']);
+    }
+
+    function isValidNewReport(data) {
+      return data.keys().hasOnly(['lat', 'lng', 'imageUrl', 'category', 'size', 'status', 'sentTo', 'createdAt']) &&
+        data.keys().hasAll(['lat', 'lng', 'imageUrl', 'category', 'size', 'status', 'sentTo', 'createdAt']) &&
+        data.lat is number && data.lat >= -90 && data.lat <= 90 &&
+        data.lng is number && data.lng >= -180 && data.lng <= 180 &&
+        data.imageUrl is string &&
+        data.imageUrl.size() < 900000 &&
+        data.imageUrl.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+') &&
+        data.category in [
+          'Sewage / Runoff', 'Chemical / Discoloration', 'Trash in Waterway',
+          'Construction Runoff', 'Fish Kill', 'Illegal Dumping', 'Plastic Waste',
+          'Hazardous Waste', 'Open Burning'
+        ] &&
+        data.size in ['bags', 'truckload', 'large-area', 'ongoing'] &&
+        data.status == 'Reported' &&
+        data.sentTo == [] &&
+        data.createdAt == request.time;
+    }
+
+    // Public update: only status -> "Sent to agency" and adding agencies.
+    // A resolved report stays resolved.
+    function isValidPublicUpdate() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let oldStatus = before.get('status', 'Reported');
+      let newStatus = after.get('status', 'Reported');
+      return after.diff(before).affectedKeys().hasOnly(['status', 'sentTo']) &&
+        isValidAgencyList(after.get('sentTo', [])) &&
+        after.get('sentTo', []).toSet().hasAll(before.get('sentTo', []).toSet()) &&
+        (newStatus == oldStatus ||
+          (newStatus == 'Sent to agency' && oldStatus == 'Reported'));
+    }
+
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if isValidNewReport(request.resource.data);
+      allow update: if isAdmin() || isValidPublicUpdate();
+      allow delete: if isAdmin();
+    }
+
+    // Moderator list. Add moderators by hand in the Firebase console.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}
