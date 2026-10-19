@@ -8,7 +8,8 @@ rules_version = '2';
 // - Only moderators can mark a report "Resolved" or delete it.
 //   A moderator is a signed-in user with a document at admins/{their uid}.
 //
-// If you add a category or size in text.js, add its value here too.
+// If you add a category or size in text.js, or a contact id in agencies.js,
+// add its value here too.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,10 +19,15 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Contact ids from agencies.js. Add new ids here too.
     function isValidAgencyList(list) {
       return list is list &&
-        list.size() <= 3 &&
-        list.toSet().hasOnly(['Chattahoochee Riverkeeper', 'ATL311', 'Georgia EPD']);
+        list.size() <= 10 &&
+        list.toSet().hasOnly([
+          'Chattahoochee Riverkeeper', 'ATL311', 'Georgia EPD',
+          'Local government', 'State environmental agency', 'Waterkeeper',
+          'EPA', 'National Response Center'
+        ]);
     }
 
     function isValidNewReport(data) {

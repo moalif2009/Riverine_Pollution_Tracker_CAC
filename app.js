@@ -17,7 +17,8 @@ const db = firebase.firestore();
 const auth = firebase.auth();
 const analytics = firebase.analytics();
 
-// Default view: the Chattahoochee through metro Atlanta
+// Default view: the Chattahoochee through metro Atlanta.
+// If the visitor has already allowed location, the map starts where they are.
 const DEFAULT_CENTER = [33.82, -84.43];
 const DEFAULT_ZOOM = 11;
 const PIN_ZOOM = 16;
@@ -25,11 +26,6 @@ const PIN_ZOOM = 16;
 // Values stored in Firestore (don't rename; existing reports use them)
 const STATUS_CLASSES = { 'Reported': 'reported', 'Sent to agency': 'sent', 'Resolved': 'resolved' };
 const STATUS_ICONS = { 'Reported': 'alert', 'Sent to agency': 'send', 'Resolved': 'check' };
-const AGENCY_RIVERKEEPER = 'Chattahoochee Riverkeeper';
-const AGENCY_311 = 'ATL311';
-const AGENCY_EPD = 'Georgia EPD';
-const RIVERKEEPER_EMAIL = 'info@chattahoochee.org';
-const ATL311_URL = 'https://www.atl311.com';
 
 let mapInstance = null;
 let pinLayer = null;        // all saved reports
@@ -745,28 +741,139 @@ function showActionPanel(isNew) {
   $('actionSummary').textContent =
     categoryLabel(currentReport.category) + ' · ' + STATUS_LABELS[normalizeStatus(currentReport.status)];
   updateSentTo();
-  showRecommendedAgencies(currentReport.category);
+  showContacts();
   reportForm.hidden = true;
   actionSection.hidden = false;
   reportBtn.hidden = true;
   sheet.hidden = false;
 }
 
-// Put the agencies recommended for this category first, tagged.
-// Unknown or older categories keep the default order with no tags.
-function showRecommendedAgencies(categoryValue) {
-  const list = $('agencyList');
-  const match = CATEGORIES.find((c) => c.value === categoryValue);
-  const recommended = match ? match.agencies : [];
-  const rows = [...list.querySelectorAll('[data-agency]')];
-  const defaultOrder = ['riverkeeper', 'atl311', 'epd'];
-  const rank = (key) => recommended.includes(key) ? recommended.indexOf(key) : 10 + defaultOrder.indexOf(key);
+// Look up city / county / state / country for a point.
+// Uses OpenStreetMap's free Nominatim service (keep it under ~1 request a second).
+const placeCache = {};
+let contactsRequestId = 0;
 
-  rows.sort((a, b) => rank(a.dataset.agency) - rank(b.dataset.agency))
-    .forEach((row) => {
-      row.querySelector('.agency-tag').hidden = !recommended.includes(row.dataset.agency);
-      list.appendChild(row);
-    });
+async function lookUpPlace(lat, lng) {
+  const key = lat.toFixed(4) + ',' + lng.toFixed(4);
+  if (placeCache[key]) return placeCache[key];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=14&addressdetails=1' +
+      `&lat=${lat}&lon=${lng}`;
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error('Place lookup failed: HTTP ' + response.status);
+    const address = (await response.json()).address || {};
+    const place = {
+      country: (address.country_code || '').toLowerCase(),
+      countryName: address.country || '',
+      state: address.state || '',
+      stateCode: (address['ISO3166-2-lvl4'] || '').split('-')[1] || '',
+      county: address.county || '',
+      city: address.city || address.town || address.village || address.hamlet || address.municipality || ''
+    };
+    placeCache[key] = place;
+    return place;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function placeName(place) {
+  return [place.city || place.county, place.state, place.countryName].filter(Boolean).join(', ');
+}
+
+function epaRegion(stateCode) {
+  return Object.keys(EPA_REGIONS).find((region) => EPA_REGIONS[region].includes(stateCode)) || '';
+}
+
+// Fill {city}, {state}... in agencies.js text. forUrl encodes the values for a web address.
+function fillTemplate(text, place, forUrl) {
+  const values = {
+    city: place.city || place.county || (forUrl ? '' : TEXT.yourArea),
+    county: place.county,
+    state: place.state || place.countryName,
+    country: place.countryName,
+    epaRegion: epaRegion(place.stateCode)
+  };
+  return text.replace(/\{(city|county|state|country|epaRegion)\}/g, (match, key) => {
+    const value = values[key] || '';
+    return forUrl ? encodeURIComponent(value).replace(/%20/g, '+') : value;
+  });
+}
+
+function placeMatches(match, place) {
+  return Object.keys(match).every((key) => {
+    const wanted = [].concat(match[key]).map((v) => String(v).toLowerCase());
+    return wanted.includes(String(place[key] || '').toLowerCase());
+  });
+}
+
+// Contacts for a place: defaults, then US contacts, then specific places on top
+function contactsFor(place) {
+  const contacts = Object.assign({}, DEFAULT_CONTACTS);
+  if (place.country === 'us') Object.assign(contacts, US_CONTACTS);
+  PLACE_CONTACTS.forEach((entry) => {
+    if (placeMatches(entry.match, place)) Object.assign(contacts, entry.contacts);
+  });
+  if (!place.state && !place.countryName) delete contacts.state; // place unknown
+  return contacts;
+}
+
+async function showContacts() {
+  const requestId = ++contactsRequestId;
+  const report = currentReport;
+  const placeLine = $('actionPlace');
+  placeLine.textContent = TEXT.findingContacts;
+  placeLine.classList.add('is-loading');
+  $('agencyList').textContent = '';
+
+  let place = null;
+  try {
+    place = await lookUpPlace(report.lat, report.lng);
+  } catch (error) {
+    console.error(error);
+  }
+  if (requestId !== contactsRequestId || report !== currentReport) return;
+
+  placeLine.classList.remove('is-loading');
+  placeLine.textContent = (place && placeName(place)) || TEXT.placeUnknown;
+  renderContacts(place || {});
+}
+
+// Recommended contacts for this category first (tagged), then the rest
+function renderContacts(place) {
+  const list = $('agencyList');
+  const contacts = contactsFor(place);
+  const category = CATEGORIES.find((c) => c.value === currentReport.category);
+  const recommended = (category ? category.contacts : []).filter((role) => contacts[role]);
+  const others = CONTACT_ORDER.filter((role) => contacts[role] && !recommended.includes(role));
+
+  list.textContent = '';
+  recommended.concat(others).forEach((role) => {
+    list.appendChild(contactRow(contacts[role], place, recommended.includes(role)));
+  });
+}
+
+function contactRow(contact, place, isRecommended) {
+  const isPhone = contact.kind === 'phone';
+  const row = document.createElement(isPhone ? 'a' : 'button');
+  row.className = 'agency' + (contact.urgent ? ' agency-urgent' : '');
+  if (isPhone) row.href = 'tel:' + contact.value;
+  else row.type = 'button';
+
+  const iconName = { email: 'mail', phone: 'phone', web: 'building' }[contact.kind];
+  row.innerHTML = `
+    <span class="agency-icon">${icon(iconName)}</span>
+    <span class="agency-text">
+      ${isRecommended ? `<span class="agency-tag">${escapeHtml(TEXT.recommended)}</span>` : ''}
+      <strong>${escapeHtml(fillTemplate(contact.name, place))}</strong>
+      <span>${escapeHtml(fillTemplate(contact.note, place))}</span>
+    </span>
+    <svg class="icon agency-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>`;
+  row.addEventListener('click', () => contactAgency(contact, place));
+  return row;
 }
 
 function updateSentTo() {
@@ -810,14 +917,6 @@ function reportText(r) {
   return TEXT.reportBody({ lat: r.lat, lng: r.lng, category: categoryLabel(r.category), size: sizeLabel(r.size) });
 }
 
-function sendToRiverkeeper() {
-  if (!currentReport) return;
-  const subject = encodeURIComponent(TEXT.reportEmailSubject(categoryLabel(currentReport.category)));
-  const body = encodeURIComponent(reportText(currentReport));
-  window.location.href = `mailto:${RIVERKEEPER_EMAIL}?subject=${subject}&body=${body}`;
-  markSent(AGENCY_RIVERKEEPER);
-}
-
 // Works on plain http too, where navigator.clipboard is undefined
 function copyText(text) {
   const area = document.createElement('textarea');
@@ -840,27 +939,34 @@ function copyText(text) {
   return ok;
 }
 
-async function sendTo311() {
+async function contactAgency(contact, place) {
   if (!currentReport) return;
   const report = currentReport;
   const text = reportText(report);
 
-  if (copyText(text)) {
-    // Open in the same click so popup blockers allow it
-    window.open(ATL311_URL, '_blank', 'noopener');
-    showToast(TEXT.copied311);
-  } else {
-    // Fallback: show the text so they can copy it manually
-    const go = await showDialog({
-      title: TEXT.copyManualTitle,
-      message: TEXT.copyManualMessage,
-      text: text,
-      confirmText: TEXT.open311
-    });
-    if (!go) return;
-    window.open(ATL311_URL, '_blank', 'noopener');
+  if (contact.kind === 'email') {
+    const subject = encodeURIComponent(TEXT.reportEmailSubject(categoryLabel(report.category)));
+    window.location.href = `mailto:${contact.value}?subject=${subject}&body=${encodeURIComponent(text)}`;
+  } else if (contact.kind === 'web') {
+    const url = fillTemplate(contact.value, place, true);
+    if (copyText(text)) {
+      // Open in the same click so popup blockers allow it
+      window.open(url, '_blank', 'noopener');
+      showToast(TEXT.copiedForForm);
+    } else {
+      // Fallback: show the text so they can copy it manually
+      const go = await showDialog({
+        title: TEXT.copyManualTitle,
+        message: TEXT.copyManualMessage,
+        text: text,
+        confirmText: TEXT.openSite
+      });
+      if (!go) return;
+      window.open(url, '_blank', 'noopener');
+    }
   }
-  markSent(AGENCY_311, report);
+  // Phone: the tel: link itself starts the call
+  markSent(contact.id, report);
 }
 
 async function markSent(agency, report) {
@@ -898,12 +1004,16 @@ $('cancelBtn').addEventListener('click', resetApp);
 $('doneBtn').addEventListener('click', resetApp);
 $('useLocationBtn').addEventListener('click', locateUser);
 $('locateBtn').addEventListener('click', locateUser);
-$('riverkeeperBtn').addEventListener('click', sendToRiverkeeper);
-$('atl311Btn').addEventListener('click', sendTo311);
-$('epdBtn').addEventListener('click', () => markSent(AGENCY_EPD));
 $('signOutBtn').addEventListener('click', signOutModerator);
 $('pollutionCategory').addEventListener('change', updateConfirmState);
 $('pollutionSize').addEventListener('change', updateConfirmState);
 confirmBtn.addEventListener('click', confirmLocation);
 
 initMap();
+
+// If location is already allowed, start the map where the visitor is
+if (window.isSecureContext && navigator.permissions) {
+  navigator.permissions.query({ name: 'geolocation' })
+    .then((status) => { if (status.state === 'granted' && !reporting) locateUser(); })
+    .catch(() => {});
+}

@@ -5,7 +5,7 @@
 // ==========================================
 const TEXT = {
   appName: 'Riverine Pollution Tracker',
-  appTagline: 'Atlanta · Chattahoochee watershed',
+  appTagline: 'Report pollution near you',
 
   legendReported: 'Reported',
   legendSent: 'Sent to agency',
@@ -50,12 +50,10 @@ const TEXT = {
   actionIntroExisting: 'Send this report to someone who can act on it.',
   alreadySentTo: 'Already sent to:',
   recommended: 'Recommended',
-  riverkeeperBtn: 'Email Chattahoochee Riverkeeper',
-  riverkeeperNote: 'Opens your email app with the report filled in.',
-  atl311Btn: 'Report to ATL311',
-  atl311Note: 'Copies the report, then opens the ATL311 site.',
-  epdBtn: 'Call GA EPD (24/7)',
-  epdNote: '(800) 241-4113 · For spills, fish kills, or other emergencies.',
+  // (Agency buttons are in agencies.js)
+  findingContacts: 'Finding who to contact here…',
+  placeUnknown: 'Could not look up this location. Showing general contacts.',
+  yourArea: 'your area',
 
   // Pin popups
   popupDefaultCategory: 'Pollution report',
@@ -101,10 +99,10 @@ const TEXT = {
   resolveFailed: 'Could not update the report.',
   markedSent: (agency) => `Marked as sent to ${agency}.`,
   statusFailed: 'Could not update the report status.',
-  copied311: 'Report copied. Paste it into the ATL311 form.',
+  copiedForForm: 'Report copied. Paste it into their form.',
   copyManualTitle: 'Copy this report',
-  copyManualMessage: 'Copy the text below, then paste it into the ATL311 form.',
-  open311: 'Open ATL311',
+  copyManualMessage: 'Copy the text below, then paste it into their form.',
+  openSite: 'Open site',
 
   // Text sent to agencies
   // r.category and r.size are the display labels
@@ -126,21 +124,21 @@ const STATUS_LABELS = {
 
 // Pollution categories. "value" is stored in Firestore; "label" is what people see.
 // Keep the first four values as they are: existing reports use them.
-// "agencies" are recommended in the Take action panel, in order
-// (riverkeeper = Chattahoochee Riverkeeper, atl311 = ATL311, epd = GA EPD).
+// "contacts" are the roles recommended in the Take action panel, in order
+// (see agencies.js: local, state, waterkeeper, epa, spill).
 const CATEGORIES = [
   // Water
-  { group: 'Water', value: 'Sewage / Runoff', label: 'Sewage overflow or leak', agencies: ['atl311', 'riverkeeper', 'epd'] },
-  { group: 'Water', value: 'Chemical / Discoloration', label: 'Oil, chemical, or discolored water', agencies: ['epd', 'riverkeeper'] },
-  { group: 'Water', value: 'Trash in Waterway', label: 'Trash in a river, creek, or storm drain', agencies: ['riverkeeper', 'atl311'] },
-  { group: 'Water', value: 'Construction Runoff', label: 'Muddy runoff from a construction site', agencies: ['atl311', 'riverkeeper', 'epd'] },
-  { group: 'Water', value: 'Fish Kill', label: 'Dead fish or wildlife', agencies: ['epd', 'riverkeeper'] },
+  { group: 'Water', value: 'Sewage / Runoff', label: 'Sewage overflow or leak', contacts: ['local', 'waterkeeper', 'state'] },
+  { group: 'Water', value: 'Chemical / Discoloration', label: 'Oil, chemical, or discolored water', contacts: ['state', 'spill', 'waterkeeper'] },
+  { group: 'Water', value: 'Trash in Waterway', label: 'Trash in a river, creek, or storm drain', contacts: ['waterkeeper', 'local'] },
+  { group: 'Water', value: 'Construction Runoff', label: 'Muddy runoff from a construction site', contacts: ['local', 'state', 'waterkeeper'] },
+  { group: 'Water', value: 'Fish Kill', label: 'Dead fish or wildlife', contacts: ['state', 'waterkeeper'] },
   // Land
-  { group: 'Land', value: 'Illegal Dumping', label: 'Illegal dumping (tires, furniture, debris)', agencies: ['atl311', 'epd'] },
-  { group: 'Land', value: 'Plastic Waste', label: 'Large buildup of trash or plastic', agencies: ['atl311'] },
-  { group: 'Land', value: 'Hazardous Waste', label: 'Hazardous waste (drums, batteries, paint)', agencies: ['epd', 'atl311'] },
+  { group: 'Land', value: 'Illegal Dumping', label: 'Illegal dumping (tires, furniture, debris)', contacts: ['local', 'state'] },
+  { group: 'Land', value: 'Plastic Waste', label: 'Large buildup of trash or plastic', contacts: ['local'] },
+  { group: 'Land', value: 'Hazardous Waste', label: 'Hazardous waste (drums, batteries, paint)', contacts: ['state', 'spill', 'local'] },
   // Air
-  { group: 'Air', value: 'Open Burning', label: 'Open burning or heavy smoke', agencies: ['epd', 'atl311'] }
+  { group: 'Air', value: 'Open Burning', label: 'Open burning or heavy smoke', contacts: ['state', 'local'] }
 ];
 
 // Size choices. There is deliberately no option for a single item.
