@@ -118,6 +118,23 @@ button, select, input, textarea { font: inherit; color: inherit; }
 .topbar h1 { font-size: 1.15rem; line-height: 1.2; margin: 0; }
 .brand-tagline { margin: 0; font-size: 0.78rem; color: var(--ink-3); }
 
+.mod-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: var(--moss-100);
+  color: var(--moss-600);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.mod-bar .link-btn { padding: 2px 8px; color: var(--moss-600); }
+@media (max-width: 767px) {
+  .mod-bar { order: 3; margin-left: 0; }
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -622,6 +639,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .dialog::backdrop { background: rgba(18, 56, 74, 0.45); }
 .dialog h2 { margin: 0 0 6px; font-size: 1.25rem; }
 .dialog p { margin: 0 0 14px; color: var(--ink-2); }
+.dialog-login label { display: block; margin-bottom: 4px; font-size: 0.85rem; font-weight: 600; }
 .dialog input, .dialog textarea {
   width: 100%;
   margin-bottom: 10px;

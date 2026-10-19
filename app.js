@@ -14,6 +14,7 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const auth = firebase.auth();
 const analytics = firebase.analytics();
 
 // Default view: the Chattahoochee through metro Atlanta
@@ -30,8 +31,6 @@ const AGENCY_EPD = 'Georgia EPD';
 const RIVERKEEPER_EMAIL = 'info@chattahoochee.org';
 const ATL311_URL = 'https://www.atl311.com';
 
-const MOD_PASSCODE = "admin123";
-
 let mapInstance = null;
 let pinLayer = null;        // all saved reports
 let draftMarker = null;     // the pin for the report being created
@@ -41,7 +40,7 @@ let reporting = false;      // true while the report form is open
 let gpsRequestId = 0;       // bumped to ignore stale GPS results
 let loadRequestId = 0;      // bumped to ignore stale pin loads
 let reports = {};           // report data by Firestore id
-let modUnlocked = false;
+let isModerator = false;   // signed in AND listed in the admins collection
 
 let selectedBase64 = null;
 let selectedCoords = null;
@@ -160,12 +159,14 @@ function showToast(message, type) {
   setTimeout(() => toast.remove(), 3900);
 }
 
-// Resolves with the input value (password), true (confirmed), or null (cancelled).
+// Resolves with { email, password } (login), true (confirmed), or null (cancelled).
 // onConfirm(value) may return an error message to keep the dialog open.
 function showDialog(opts) {
   const dialog = $('dialog');
   const form = $('dialogForm');
-  const input = $('dialogInput');
+  const login = $('dialogLogin');
+  const email = $('dialogEmail');
+  const password = $('dialogPassword');
   const textArea = $('dialogText');
   const error = $('dialogError');
   const confirm = $('dialogConfirm');
@@ -174,9 +175,8 @@ function showDialog(opts) {
   $('dialogTitle').textContent = opts.title;
   $('dialogMessage').textContent = opts.message || '';
   $('dialogMessage').hidden = !opts.message;
-  input.hidden = !opts.password;
-  input.value = '';
-  input.placeholder = opts.password || '';
+  login.hidden = !opts.login;
+  password.value = '';
   textArea.hidden = !opts.text;
   textArea.value = opts.text || '';
   error.hidden = true;
@@ -197,7 +197,7 @@ function showDialog(opts) {
     const onSubmit = async (e) => {
       e.preventDefault();
       if (busy) return;
-      const value = opts.password ? input.value : true;
+      const value = opts.login ? { email: email.value.trim(), password: password.value } : true;
       if (opts.onConfirm) {
         busy = true;
         setBusy(confirm, true);
@@ -227,7 +227,7 @@ function showDialog(opts) {
     cancel.addEventListener('click', onCancel);
     dialog.addEventListener('cancel', onEscape);
     dialog.showModal();
-    if (opts.password) input.focus();
+    if (opts.login) (email.value ? password : email).focus();
     else if (opts.text) textArea.select();
     else confirm.focus();
   });
@@ -605,23 +605,76 @@ async function loadAllPins() {
 }
 
 // ---------- 6. Moderator actions ----------
-// One dialog asks for the passcode (first time only) and confirms the action.
+// Moderators sign in with Firebase Auth. The Firestore rules (firestore.rules)
+// are what actually enforce this; the checks here just keep the UI honest.
+async function checkModerator(user) {
+  if (!user) return false;
+  try {
+    const doc = await db.collection('admins').doc(user.uid).get();
+    return doc.exists;
+  } catch (error) {
+    console.error('Could not check moderator status:', error);
+    return false;
+  }
+}
+
+function setModerator(value) {
+  isModerator = value;
+  $('modBar').hidden = !value;
+}
+
+auth.onAuthStateChanged(async (user) => {
+  setModerator(await checkModerator(user));
+});
+
+async function signInModerator(email, password) {
+  try {
+    const result = await auth.signInWithEmailAndPassword(email, password);
+    if (!(await checkModerator(result.user))) {
+      await auth.signOut();
+      return TEXT.modNotModerator;
+    }
+    setModerator(true);
+    return null;
+  } catch (error) {
+    console.error('Sign-in failed:', error);
+    if (['auth/invalid-credential', 'auth/wrong-password', 'auth/user-not-found',
+         'auth/invalid-email', 'auth/missing-password'].includes(error.code)) {
+      return TEXT.modWrongLogin;
+    }
+    if (error.code === 'auth/too-many-requests') return TEXT.modTooManyTries;
+    return TEXT.modSignInFailed;
+  }
+}
+
+// One dialog signs in (if needed) and confirms the action.
 function moderatorDialog(opts) {
+  const needsLogin = !isModerator;
   return showDialog({
     title: opts.title,
-    message: opts.message,
+    message: needsLogin ? opts.message + ' ' + TEXT.modSignInHint : opts.message,
     confirmText: opts.confirmText,
     danger: opts.danger,
-    password: modUnlocked ? null : TEXT.modPasscodePrompt,
-    errorText: opts.errorText,
+    login: needsLogin,
     onConfirm: async (value) => {
-      if (!modUnlocked) {
-        if (value !== MOD_PASSCODE) return TEXT.modPasscodeWrong;
-        modUnlocked = true;
+      if (!isModerator) {
+        const loginError = await signInModerator(value.email, value.password);
+        if (loginError) return loginError;
       }
-      await opts.run();
+      try {
+        await opts.run();
+      } catch (error) {
+        console.error(error);
+        return error.code === 'permission-denied' ? TEXT.modNoPermission : opts.errorText;
+      }
     }
   });
+}
+
+async function signOutModerator() {
+  await auth.signOut();
+  setModerator(false);
+  showToast(TEXT.modSignedOut);
 }
 
 async function deleteReport(docId) {
@@ -848,6 +901,7 @@ $('locateBtn').addEventListener('click', locateUser);
 $('riverkeeperBtn').addEventListener('click', sendToRiverkeeper);
 $('atl311Btn').addEventListener('click', sendTo311);
 $('epdBtn').addEventListener('click', () => markSent(AGENCY_EPD));
+$('signOutBtn').addEventListener('click', signOutModerator);
 $('pollutionCategory').addEventListener('change', updateConfirmState);
 $('pollutionSize').addEventListener('change', updateConfirmState);
 confirmBtn.addEventListener('click', confirmLocation);
