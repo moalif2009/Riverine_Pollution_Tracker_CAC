@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Riverine Pollution Tracker</title>
 
   <!-- Leaflet Map Styles -->
@@ -12,64 +12,78 @@
 </head>
 <body>
 
-  <div class="wrap">
+  <header class="topbar">
     <h1>Riverine Pollution Tracker</h1>
-    <p class="subtitle">Upload a photo, pick your exact location, and confirm.</p>
+    <ul class="legend" aria-label="Map legend">
+      <li><span class="dot dot-reported"></span>Reported</li>
+      <li><span class="dot dot-sent"></span>Sent to agency</li>
+      <li><span class="dot dot-resolved"></span>Resolved</li>
+    </ul>
+  </header>
 
-    <!-- STEP 1: HOME PAGE (IMAGE INPUT) -->
-    <div id="upload-section">
-      <div class="upload-card">
-        <label class="upload-btn">
-          📷 Select / Take Photo
-          <input type="file" id="photoInput" accept="image/*" style="display: none;" />
-        </label>
-      </div>
-    </div>
+  <main class="app">
+    <div id="map"></div>
 
-    <!-- STEP 2: MAP PLACEMENT VIEW -->
-    <div id="map-section">
-      <div class="instruction-bar" id="instruction">
-        👇 Click anywhere on the map to place your pin.
-      </div>
+    <button id="locateBtn" class="map-btn" type="button" title="Use my location" aria-label="Use my location">
+      ◎
+    </button>
 
-      <!-- Pollution Category Selector -->
-      <div style="margin-bottom: 10px; text-align: left;">
-        <label style="font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 4px;">Pollution Type:</label>
-        <select id="pollutionCategory" style="width: 100%; padding: 10px; border-radius: 6px; background: #161b22; color: #e6edf3; border: 1px solid #30363d;">
-          <option value="Plastic Waste">🗑️ Plastic / Solid Waste</option>
-          <option value="Chemical / Discoloration">🧪 Chemical Spill / Discoloration</option>
-          <option value="Illegal Dumping">🛢️ Illegal Dumping / Debris</option>
-          <option value="Sewage / Runoff">🌊 Sewage / Urban Runoff</option>
-        </select>
+    <button id="reportBtn" class="report-btn" type="button">Report pollution</button>
+
+    <!-- Bottom sheet (phones) / side panel (desktop) -->
+    <aside id="sheet" class="sheet" hidden aria-labelledby="sheetTitle">
+      <div class="sheet-header">
+        <h2 id="sheetTitle">New report</h2>
+        <button id="closeSheetBtn" class="icon-btn" type="button" aria-label="Close">✕</button>
       </div>
 
-      <div id="map"></div>
+      <!-- New report form -->
+      <section id="report-form">
+        <div class="field">
+          <span class="field-label">1. Photo</span>
+          <label class="photo-picker" id="photoPicker">
+            <img id="photoPreview" alt="" hidden />
+            <span id="photoPickerText">Take or choose a photo</span>
+            <input type="file" id="photoInput" accept="image/*" class="visually-hidden" />
+          </label>
+        </div>
 
-      <div class="action-row">
-        <button class="reset-btn" onclick="resetApp()">← Cancel</button>
-        <button id="confirmBtn" class="primary-btn" onclick="confirmLocation()">Confirm Location ✅</button>
-      </div>
-    </div>
+        <div class="field">
+          <span class="field-label">2. Location</span>
+          <p id="locStatus" class="loc-status">Tap the map to place the pin.</p>
+          <button id="useLocationBtn" class="secondary-btn" type="button">Use my location</button>
+        </div>
 
-    <!-- STEP 3: TAKE ACTION (shown after a report is saved) -->
-    <div id="action-section" style="display: none;">
-      <h2>✅ Report saved. Now get it fixed.</h2>
-      <p class="subtitle">Send your report to someone who can act on it.</p>
+        <div class="field">
+          <label class="field-label" for="pollutionCategory">3. Pollution type</label>
+          <select id="pollutionCategory">
+            <option value="Plastic Waste">Plastic / Solid Waste</option>
+            <option value="Chemical / Discoloration">Chemical Spill / Discoloration</option>
+            <option value="Illegal Dumping">Illegal Dumping / Debris</option>
+            <option value="Sewage / Runoff">Sewage / Urban Runoff</option>
+          </select>
+        </div>
 
-      <button class="primary-btn" style="display: block; width: 100%; margin-bottom: 10px;"
-              onclick="sendToRiverkeeper()">📧 Email Chattahoochee Riverkeeper</button>
+        <div class="action-row">
+          <button id="cancelBtn" class="secondary-btn" type="button">Cancel</button>
+          <button id="confirmBtn" class="primary-btn" type="button" disabled>Submit report</button>
+        </div>
+      </section>
 
-      <button class="primary-btn" style="display: block; width: 100%; margin-bottom: 10px;"
-              onclick="sendTo311()">🏙️ Report to ATL311</button>
+      <!-- Take action (shown after a report is saved) -->
+      <section id="action-section" hidden>
+        <p class="sheet-intro">Report saved. Send it to someone who can act on it.</p>
 
-      <a href="tel:18002414113" onclick="markSent('Georgia EPD')"
-         class="delete-btn" style="display: block; padding: 12px; text-decoration: none; margin-top: 0;">
-        🚨 Spill or fish kill? Call GA EPD 24/7: (800) 241-4113
-      </a>
+        <button class="primary-btn block" type="button" onclick="sendToRiverkeeper()">Email Chattahoochee Riverkeeper</button>
+        <button class="primary-btn block" type="button" onclick="sendTo311()">Report to ATL311</button>
+        <a href="tel:18002414113" onclick="markSent('Georgia EPD')" class="danger-btn block">
+          Spill or fish kill? Call GA EPD 24/7: (800) 241-4113
+        </a>
 
-      <button class="reset-btn" style="width: 100%; margin-top: 16px;" onclick="resetApp()">Done</button>
-    </div>
-  </div>
+        <button id="doneBtn" class="secondary-btn block" type="button">Done</button>
+      </section>
+    </aside>
+  </main>
 
   <!-- Leaflet Map JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
