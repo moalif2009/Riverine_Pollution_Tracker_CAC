@@ -23,6 +23,7 @@ const PIN_ZOOM = 16;
 
 // Values stored in Firestore (don't rename; existing reports use them)
 const STATUS_CLASSES = { 'Reported': 'reported', 'Sent to agency': 'sent', 'Resolved': 'resolved' };
+const STATUS_ICONS = { 'Reported': 'alert', 'Sent to agency': 'send', 'Resolved': 'check' };
 const AGENCY_RIVERKEEPER = 'Chattahoochee Riverkeeper';
 const AGENCY_311 = 'ATL311';
 const AGENCY_EPD = 'Georgia EPD';
@@ -73,6 +74,15 @@ function safeImageUrl(url) {
   if (/^data:image\/(jpeg|jpg|png|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(url)) return url;
   if (/^https:\/\/[^\s"'()<>\\]+$/.test(url)) return url;
   return null;
+}
+
+// Icon from the SVG sprite in index.html
+function icon(name) {
+  return `<svg class="icon" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+function statusBadge(status) {
+  return `<span class="badge badge-${STATUS_CLASSES[status]}">${icon(STATUS_ICONS[status])}</span>`;
 }
 
 function categoryLabel(value) {
@@ -201,7 +211,17 @@ function showDialog(opts) {
 // ---------- 1. Map (shown right away) ----------
 function initMap() {
   mapInstance = L.map('map', { zoomControl: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-  L.control.zoom({ position: 'topright' }).addTo(mapInstance);
+  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance);
+
+  // "Use my location" sits above the zoom buttons
+  const LocateControl = L.Control.extend({
+    onAdd: () => {
+      const button = $('locateBtn');
+      L.DomEvent.disableClickPropagation(button);
+      return button;
+    }
+  });
+  new LocateControl({ position: 'bottomright' }).addTo(mapInstance);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -280,7 +300,7 @@ function draftIcon() {
   if (selectedBase64) {
     return L.divIcon({
       className: 'custom-photo-pin',
-      html: `<div class="photo-pin photo-pin-draft" style="background-image: url('${escapeHtml(selectedBase64)}')"></div>`,
+      html: `<div class="photo-pin-draft" style="background-image: url('${escapeHtml(selectedBase64)}')"></div>`,
       iconSize: [48, 48],
       iconAnchor: [24, 24]
     });
@@ -497,11 +517,13 @@ function popupHtml(id, data) {
       ${img
         ? `<img class="popup-photo" src="${escapeHtml(img)}" alt="" />`
         : `<div class="popup-photo popup-photo-empty">${escapeHtml(TEXT.popupNoPhoto)}</div>`}
-      <strong class="popup-title">${escapeHtml(categoryLabel(data.category))}</strong>
-      <span class="status-chip status-${statusClass}">${escapeHtml(STATUS_LABELS[status])}</span>
-      ${date ? `<p class="popup-meta">${escapeHtml(TEXT.popupReportedOn)} ${escapeHtml(date)}</p>` : ''}
-      ${sentTo.length ? `<p class="popup-meta">${escapeHtml(TEXT.popupSentTo)}: ${escapeHtml(sentTo.join(', '))}</p>` : ''}
-      <button class="primary-btn popup-action" type="button" data-action="take-action" data-id="${safeId}">${escapeHtml(TEXT.popupTakeAction)}</button>
+      <div class="popup-body">
+        <strong class="popup-title">${escapeHtml(categoryLabel(data.category))}</strong>
+        <span class="status-chip status-${statusClass}">${statusBadge(status)}${escapeHtml(STATUS_LABELS[status])}</span>
+        ${date ? `<p class="popup-meta">${escapeHtml(TEXT.popupReportedOn)} ${escapeHtml(date)}</p>` : ''}
+        ${sentTo.length ? `<p class="popup-meta">${escapeHtml(TEXT.popupSentTo)}: ${escapeHtml(sentTo.join(', '))}</p>` : ''}
+        <button class="primary-btn popup-action" type="button" data-action="take-action" data-id="${safeId}">${escapeHtml(TEXT.popupTakeAction)}</button>
+      </div>
       <div class="popup-mod">
         ${status !== 'Resolved'
           ? `<button class="link-btn" type="button" data-action="resolve" data-id="${safeId}">${escapeHtml(TEXT.popupResolve)}</button>`
@@ -540,10 +562,10 @@ async function loadAllPins() {
 
     const photoIcon = L.divIcon({
       className: 'custom-photo-pin',
-      html: `<div class="photo-pin pin-${STATUS_CLASSES[status]}"${imageStyle}></div>`,
+      html: `<div class="pin pin-${STATUS_CLASSES[status]}"><div class="pin-photo"${imageStyle}></div>${statusBadge(status)}</div>`,
       iconSize: [40, 40],
       iconAnchor: [20, 20],
-      popupAnchor: [0, -18]
+      popupAnchor: [0, -20]
     });
 
     L.marker([lat, lng], { icon: photoIcon, title: categoryLabel(data.category) })

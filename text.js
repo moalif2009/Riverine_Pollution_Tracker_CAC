@@ -49,8 +49,8 @@ const TEXT = {
   riverkeeperNote: 'Opens your email app with the report filled in.',
   atl311Btn: 'Report to ATL311',
   atl311Note: 'Copies the report, then opens the ATL311 site.',
-  epdBtn: 'Call GA EPD 24/7: (800) 241-4113',
-  epdNote: 'For spills, fish kills, or other emergencies.',
+  epdBtn: 'Call GA EPD (24/7)',
+  epdNote: '(800) 241-4113 · For spills, fish kills, or other emergencies.',
 
   // Pin popups
   popupDefaultCategory: 'Pollution report',
