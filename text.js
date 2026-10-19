@@ -4,7 +4,7 @@
 // data-text="key" from this object, and app.js uses it for messages.
 // ==========================================
 const TEXT = {
-  appName: 'Riverine Pollution Tracker',
+  appName: 'Cleanly',
   appTagline: 'Report pollution near you',
 
   legendReported: 'Reported',
@@ -112,7 +112,7 @@ const TEXT = {
     (r.size ? `Size: ${r.size}\n` : '') +
     `Location: ${r.lat.toFixed(6)}, ${r.lng.toFixed(6)}\n` +
     `Map: https://www.google.com/maps?q=${r.lat},${r.lng}\n\n` +
-    `Submitted through the Riverine Pollution Tracker.`
+    `Submitted through Cleanly.`
 };
 
 // Status labels. The keys are the values stored in Firestore; don't change them.
