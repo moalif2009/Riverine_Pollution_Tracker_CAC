@@ -50,6 +50,23 @@
         <button id="confirmBtn" class="primary-btn" onclick="confirmLocation()">Confirm Location ✅</button>
       </div>
     </div>
+    <!-- STEP 3: TAKE ACTION -->
+<div id="action-section" style="display: none;">
+  <h2>✅ Report saved. Now get it fixed.</h2>
+
+  <button class="primary-btn" style="display:block; width:100%; margin-bottom:10px;"
+          onclick="sendToRiverkeeper()">📧 Email Chattahoochee Riverkeeper</button>
+
+  <button class="primary-btn" style="display:block; width:100%; margin-bottom:10px;"
+          onclick="sendTo311()">🏙️ Report to ATL311</button>
+
+  <a href="tel:18002414113" onclick="markSent('Georgia EPD')"
+     class="delete-btn" style="display:block; padding:12px; text-decoration:none;">
+     🚨 Spill or fish kill? Call GA EPD 24/7
+  </a>
+
+  <button class="reset-btn" style="width:100%; margin-top:16px;" onclick="resetApp()">Done</button>
+</div>
   </div>
 
   <!-- Leaflet Map JS -->
