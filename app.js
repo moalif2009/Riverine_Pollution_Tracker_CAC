@@ -20,6 +20,7 @@ let mapInstance = null;
 let selectedBase64 = null;
 let tempMarker = null;
 let selectedCoords = null;
+let currentReport = null;
 
 const uploadSection = document.getElementById('upload-section');
 const mapSection = document.getElementById('map-section');
@@ -129,17 +130,27 @@ async function confirmLocation() {
   confirmBtn.disabled = true;
 
   try {
-    await db.collection("reports").add({
+    const docRef = await db.collection("reports").add({
       lat: selectedCoords.lat,
       lng: selectedCoords.lng,
       imageUrl: selectedBase64,
       category: category,
       status: "Reported",
+      sentTo: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    alert("Civic report successfully logged and synced!");
-    resetApp();
+    // Remember this report so the agency buttons know what to send
+    currentReport = {
+      id: docRef.id,
+      lat: selectedCoords.lat,
+      lng: selectedCoords.lng,
+      category: category
+    };
+
+    // Show the "Take action" panel instead of resetting
+    mapSection.style.display = 'none';
+    document.getElementById('action-section').style.display = 'block';
   } catch (error) {
     console.error("Error saving report: ", error);
     alert("Failed to save. Check your Firestore rules.");
@@ -156,7 +167,10 @@ function loadAllPins() {
       const data = doc.data();
       const docId = doc.id;
 
-      const borderColor = data.status === "Resolved" ? "#238636" : "#da3633";
+      const borderColor =
+        data.status === "Resolved" ? "#238636" :
+        data.status === "Sent to agency" ? "#d29922" :
+        "#da3633";
 
       const photoIcon = L.divIcon({
         className: 'custom-photo-pin',
@@ -224,4 +238,46 @@ function resetApp() {
   uploadSection.style.display = 'block';
   instruction.innerText = '👇 Click anywhere on the map to place your pin.';
   if (mapInstance) loadAllPins();
+  document.getElementById('action-section').style.display = 'none';
+  currentReport = null;
+}
+
+// 7. Send to Agencies
+function reportText(r) {
+  return `Pollution report: ${r.category}\n` +
+         `Location: ${r.lat.toFixed(6)}, ${r.lng.toFixed(6)}\n` +
+         `Map: https://www.google.com/maps?q=${r.lat},${r.lng}\n\n` +
+         `Submitted through the Riverine Pollution Tracker.`;
+}
+
+function sendToRiverkeeper() {
+  if (!currentReport) return;
+  const subject = encodeURIComponent('Pollution report: ' + currentReport.category);
+  const body = encodeURIComponent(reportText(currentReport));
+  window.location.href = `mailto:info@chattahoochee.org?subject=${subject}&body=${body}`;
+  markSent('Chattahoochee Riverkeeper');
+}
+
+async function sendTo311() {
+  if (!currentReport) return;
+  try {
+    await navigator.clipboard.writeText(reportText(currentReport));
+    alert('Report copied! Paste it into the ATL311 form.');
+  } catch (e) {
+    alert(reportText(currentReport)); // fallback: show it so they can copy manually
+  }
+  window.open('https://www.atl311.com', '_blank');
+  markSent('ATL311');
+}
+
+async function markSent(agency) {
+  if (!currentReport) return;
+  try {
+    await db.collection('reports').doc(currentReport.id).update({
+      status: 'Sent to agency',
+      sentTo: firebase.firestore.FieldValue.arrayUnion(agency)
+    });
+  } catch (e) {
+    console.error('Could not update status:', e);
+  }
 }
