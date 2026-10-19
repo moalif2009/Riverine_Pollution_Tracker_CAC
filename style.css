@@ -120,7 +120,7 @@ body {
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
-.photo-pin-draft {
+.photo-pin.photo-pin-draft {
   width: 48px; height: 48px;
   border: 3px solid var(--accent);
 }
@@ -269,14 +269,118 @@ select {
   margin-bottom: 10px;
 }
 
-.delete-btn {
-  background: var(--danger);
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  margin-top: 8px;
-  font-weight: 600;
+/* Busy state */
+.is-busy { position: relative; cursor: progress !important; }
+.is-busy::after {
+  content: "";
+  display: inline-block;
+  width: 0.9em; height: 0.9em;
+  margin-left: 8px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
+.map-btn.is-busy::after { position: absolute; inset: 6px; margin: 0; width: auto; height: auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Pins by status ---------- */
+.photo-pin { background-color: var(--surface); border: 3px solid var(--status-reported); }
+.pin-reported { border-color: var(--status-reported); }
+.pin-sent { border-color: var(--status-sent); }
+.pin-resolved { border-color: var(--status-resolved); }
+
+/* ---------- Popups ---------- */
+.popup { display: flex; flex-direction: column; gap: 6px; }
+.popup-photo {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.popup-photo-empty {
+  display: grid;
+  place-items: center;
+  background: #eee;
+  color: #666;
+  font-size: 0.8rem;
+}
+.popup-title { font-size: 0.95rem; }
+.popup-meta { margin: 0 !important; font-size: 0.8rem; color: #555; }
+.status-chip {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+.status-reported { background: var(--status-reported); }
+.status-sent { background: var(--status-sent); }
+.status-resolved { background: var(--status-resolved); }
+.popup-action { width: 100%; margin-top: 4px; }
+.popup-mod { display: flex; justify-content: space-between; }
+.link-btn {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #555;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-danger { color: var(--danger); }
+
+.action-summary { font-weight: 600; margin: 0 0 4px; }
+.action-sent-to { font-size: 0.85rem; color: var(--muted); margin: 0 0 14px; }
+
+/* ---------- Dialog ---------- */
+.dialog {
+  width: min(400px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+.dialog::backdrop { background: rgba(0,0,0,0.5); }
+.dialog h2 { margin: 0 0 8px; font-size: 1.1rem; }
+.dialog p { margin: 0 0 12px; color: var(--muted); }
+.dialog input, .dialog textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.dialog .dialog-error { color: var(--danger); font-size: 0.85rem; }
+
+/* ---------- Toasts ---------- */
+.toasts {
+  position: fixed;
+  top: calc(var(--topbar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.toast {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.9rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  transition: opacity 0.3s, transform 0.3s;
+}
+.toast-error { background: var(--danger); color: #fff; }
+.toast.is-leaving { opacity: 0; transform: translateY(-6px); }
