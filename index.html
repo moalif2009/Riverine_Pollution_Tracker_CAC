@@ -100,7 +100,13 @@
 
         <div class="field">
           <label class="field-label" for="pollutionCategory"><span class="step">3</span><span data-text="categoryLabel"></span></label>
-          <select id="pollutionCategory"></select>
+          <select id="pollutionCategory" required></select>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="pollutionSize"><span class="step">4</span><span data-text="sizeLabel"></span></label>
+          <p class="field-hint" data-text="sizeHint"></p>
+          <select id="pollutionSize" required></select>
         </div>
 
         <div class="action-row form-footer">
@@ -117,26 +123,29 @@
           <p id="actionSentTo" class="action-sent-to" hidden></p>
         </div>
 
-        <div class="agency-list">
-          <button id="riverkeeperBtn" class="agency" type="button">
+        <div class="agency-list" id="agencyList">
+          <button id="riverkeeperBtn" data-agency="riverkeeper" class="agency" type="button">
             <span class="agency-icon"><svg class="icon"><use href="#i-mail"/></svg></span>
             <span class="agency-text">
+              <span class="agency-tag" data-text="recommended" hidden></span>
               <strong data-text="riverkeeperBtn"></strong>
               <span data-text="riverkeeperNote"></span>
             </span>
             <svg class="icon agency-chevron"><use href="#i-chevron"/></svg>
           </button>
-          <button id="atl311Btn" class="agency" type="button">
+          <button id="atl311Btn" data-agency="atl311" class="agency" type="button">
             <span class="agency-icon"><svg class="icon"><use href="#i-building"/></svg></span>
             <span class="agency-text">
+              <span class="agency-tag" data-text="recommended" hidden></span>
               <strong data-text="atl311Btn"></strong>
               <span data-text="atl311Note"></span>
             </span>
             <svg class="icon agency-chevron"><use href="#i-chevron"/></svg>
           </button>
-          <a id="epdBtn" href="tel:18002414113" class="agency agency-urgent">
+          <a id="epdBtn" data-agency="epd" href="tel:18002414113" class="agency agency-urgent">
             <span class="agency-icon"><svg class="icon"><use href="#i-phone"/></svg></span>
             <span class="agency-text">
+              <span class="agency-tag" data-text="recommended" hidden></span>
               <strong data-text="epdBtn"></strong>
               <span data-text="epdNote"></span>
             </span>

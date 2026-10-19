@@ -433,6 +433,10 @@ button, select, input, textarea { font: inherit; color: inherit; }
   font-weight: 700;
 }
 
+.field-hint { margin: -2px 0 8px; font-size: 0.83rem; color: var(--ink-3); }
+select:invalid { color: var(--ink-3); }
+select option { color: var(--ink); }
+
 .photo-picker {
   display: flex;
   align-items: center;
@@ -586,6 +590,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .agency-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .agency-text strong { font-size: 0.95rem; }
+.agency-text .agency-tag {
+  align-self: flex-start;
+  margin-bottom: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--moss-100);
+  color: var(--moss-600);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
 .agency-text span { font-size: 0.82rem; color: var(--ink-3); }
 .agency-chevron { color: var(--ink-3); }
 .agency-urgent { border-color: #e8c3bd; background: var(--status-reported-bg); }
