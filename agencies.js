@@ -18,6 +18,10 @@
 //           the site), or 'phone' (calls the number)
 //   value - email address, web address, or phone number (digits only)
 //   urgent - true shows the button in red
+//   phone  - optional extra phone number (digits) shown as "Or call…"
+//   phoneLabel - text for that extra phone link
+//   searchFor - optional: what to type in the site's search box, by
+//           category value (from text.js). "default" is used otherwise.
 // In name, note and value you can use {city}, {county}, {state},
 // {country} and {epaRegion}; they're filled in for each report.
 // ==========================================
@@ -121,9 +125,22 @@ const PLACE_CONTACTS = [
       local: {
         id: 'ATL311',
         name: 'Report to ATL311',
-        note: 'Copies the report, then opens the ATL311 site.',
+        note: 'Copies the report and tells you what to search for.',
         kind: 'web',
-        value: 'https://www.atl311.com'
+        value: 'https://www.atl311.com',
+        phone: '14045460311',
+        phoneLabel: 'Or call ATL311: (404) 546-0311',
+        // Words to type in ATL311's search box (check these on atl311.com)
+        searchFor: {
+          'Illegal Dumping': 'illegal dumping',
+          'Hazardous Waste': 'illegal dumping',
+          'Plastic Waste': 'litter',
+          'Sewage / Runoff': 'sewer',
+          'Trash in Waterway': 'storm drain',
+          'Construction Runoff': 'erosion',
+          'Open Burning': 'open burning',
+          default: 'illegal dumping'
+        }
       }
     }
   }

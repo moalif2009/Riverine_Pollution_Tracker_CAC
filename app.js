@@ -955,7 +955,17 @@ function contactRow(contact, place, isRecommended) {
     </span>
     <svg class="icon agency-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>`;
   row.addEventListener('click', () => contactAgency(contact, place));
-  return row;
+  if (!contact.phone) return row;
+
+  // Extra "Or call…" link under the button
+  const wrapper = document.createElement('div');
+  const call = document.createElement('a');
+  call.className = 'agency-call';
+  call.href = 'tel:' + contact.phone;
+  call.innerHTML = icon('phone') + `<span>${escapeHtml(fillTemplate(contact.phoneLabel || contact.phone, place))}</span>`;
+  call.addEventListener('click', () => markSent(contact.id));
+  wrapper.append(row, call);
+  return wrapper;
 }
 
 function updateSentTo() {
@@ -1031,7 +1041,21 @@ async function contactAgency(contact, place) {
     window.location.href = `mailto:${contact.value}?subject=${subject}&body=${encodeURIComponent(text)}`;
   } else if (contact.kind === 'web') {
     const url = fillTemplate(contact.value, place, true);
-    if (copyText(text)) {
+    const searchFor = contact.searchFor &&
+      (contact.searchFor[report.category] || contact.searchFor.default);
+
+    if (searchFor) {
+      // Big sites like 311: say what to search for before opening the site
+      const copied = copyText(text);
+      const go = await showDialog({
+        title: copied ? TEXT.searchHintTitle : TEXT.copyManualTitle,
+        message: TEXT.searchHint(searchFor),
+        text: copied ? '' : text,
+        confirmText: TEXT.openSite
+      });
+      if (!go) return;
+      window.open(url, '_blank', 'noopener');
+    } else if (copyText(text)) {
       // Open in the same click so popup blockers allow it
       window.open(url, '_blank', 'noopener');
       showToast(TEXT.copiedForForm);

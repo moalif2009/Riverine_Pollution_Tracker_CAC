@@ -670,6 +670,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .agency-text span { font-size: 0.82rem; color: var(--ink-3); }
 .agency-chevron { color: var(--ink-3); }
+.agency-call {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 4px 64px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--river-700);
+}
+.agency-call .icon { width: 15px; height: 15px; }
 .agency-urgent { border-color: #e8c3bd; background: var(--status-reported-bg); }
 .agency-urgent:hover { border-color: var(--danger); background: #f4d9d4; }
 .agency-urgent .agency-icon { background: var(--danger); color: #fff; }

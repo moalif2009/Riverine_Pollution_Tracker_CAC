@@ -102,6 +102,8 @@ const TEXT = {
   markedSent: (agency) => `Marked as sent to ${agency}.`,
   statusFailed: 'Could not update the report status.',
   copiedForForm: 'Report copied. Paste it into their form.',
+  searchHintTitle: 'Your report is copied',
+  searchHint: (words) => `On the site, search for “${words}”, choose that request, and paste your report into the form.`,
   copyManualTitle: 'Copy this report',
   copyManualMessage: 'Copy the text below, then paste it into their form.',
   openSite: 'Open site',
