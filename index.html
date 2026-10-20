@@ -83,7 +83,7 @@
       <section id="report-form" class="sheet-body">
         <div class="field">
           <span class="field-label"><span class="step">1</span><span data-text="photoLabel"></span></span>
-          <label class="photo-picker">
+          <label class="photo-picker" id="photoPicker">
             <span class="photo-thumb">
               <img id="photoPreview" alt="" hidden />
               <svg class="icon"><use href="#i-camera"/></svg>
@@ -91,6 +91,7 @@
             <span id="photoPickerText" data-text="photoPick"></span>
             <input type="file" id="photoInput" accept="image/*" class="visually-hidden" />
           </label>
+          <p id="photoMessage" class="field-error" role="alert" hidden></p>
         </div>
 
         <div class="field">

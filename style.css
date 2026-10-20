@@ -487,6 +487,27 @@ select option { color: var(--ink); }
   object-fit: cover;
 }
 
+.photo-picker.is-checking { cursor: progress; color: var(--ink-3); }
+.photo-picker.is-checking .photo-thumb::after {
+  content: "";
+  position: absolute;
+  width: 22px; height: 22px;
+  border: 2px solid var(--river-600);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.photo-picker.is-checking .photo-thumb .icon { opacity: 0.3; }
+.field-error {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--status-reported-bg);
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .loc-status {
   margin: 0 0 10px;
   padding: 10px 12px;

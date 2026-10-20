@@ -38,6 +38,17 @@ let loadRequestId = 0;      // bumped to ignore stale pin loads
 let reports = {};           // report data by Firestore id
 let isModerator = false;   // signed in AND listed in the admins collection
 
+// Photo check: a free model that runs on the user's device (NSFWJS) and blocks
+// explicit photos. Raise a number to block less, lower it to block more.
+const PHOTO_CHECK_LIMITS = { Porn: 0.5, Hentai: 0.5, Sexy: 0.8 };
+const PHOTO_CHECK_SCRIPTS = [
+  'https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/models/mobilenet_v2/model.min.js',
+  'https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/models/mobilenet_v2/group1-shard1of1.min.js',
+  'https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/browser/nsfwjs.min.js'
+];
+let photoCheckerPromise = null;
+let photoCheckId = 0;       // bumped to ignore results for an old photo
+
 let selectedBase64 = null;
 let selectedCoords = null;
 let currentReport = null;
@@ -50,6 +61,8 @@ const reportBtn = $('reportBtn');
 const photoInput = $('photoInput');
 const photoPreview = $('photoPreview');
 const photoPickerText = $('photoPickerText');
+const photoPicker = $('photoPicker');
+const photoMessage = $('photoMessage');
 const locStatus = $('locStatus');
 const confirmBtn = $('confirmBtn');
 
@@ -309,6 +322,7 @@ function openReportForm() {
   sheet.hidden = false;
   clearUserDot();
   locateUser();
+  loadPhotoChecker(); // start downloading the photo check early
 }
 
 function draftIcon() {
@@ -421,7 +435,56 @@ function locateUser() {
   );
 }
 
-// ---------- 3. Photo: resize & compress ----------
+// ---------- 3. Photo: check, resize & compress ----------
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Could not load ' + src));
+    document.head.appendChild(script);
+  });
+}
+
+// Resolves with the model, or null if it can't load (then photos aren't blocked)
+function loadPhotoChecker() {
+  if (!photoCheckerPromise) {
+    photoCheckerPromise = PHOTO_CHECK_SCRIPTS
+      .reduce((ready, src) => ready.then(() => loadScript(src)), Promise.resolve())
+      .then(() => nsfwjs.load('MobileNetV2'))
+      .catch((error) => {
+        console.warn('Photo check unavailable:', error);
+        photoCheckerPromise = null; // try again next time
+        return null;
+      });
+  }
+  return photoCheckerPromise;
+}
+
+// true = OK to use. If the check can't run (offline, slow phone), the photo is allowed
+// so people can still report.
+async function checkPhoto(canvas) {
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 20000));
+  const model = await Promise.race([loadPhotoChecker(), timeout]);
+  if (!model) return true;
+  try {
+    const predictions = await model.classify(canvas);
+    return !predictions.some((p) =>
+      PHOTO_CHECK_LIMITS[p.className] !== undefined && p.probability >= PHOTO_CHECK_LIMITS[p.className]);
+  } catch (error) {
+    console.warn('Photo check failed:', error);
+    return true;
+  }
+}
+
+function clearPhoto() {
+  photoInput.value = '';
+  photoPreview.hidden = true;
+  photoPreview.removeAttribute('src');
+  photoPickerText.textContent = TEXT.photoPick;
+  selectedBase64 = null;
+  if (draftMarker) draftMarker.setIcon(draftIcon());
+}
 photoInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -453,13 +516,33 @@ photoInput.addEventListener('change', (e) => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
 
-      selectedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      const photo = canvas.toDataURL('image/jpeg', 0.7);
+      const checkId = ++photoCheckId;
 
-      photoPreview.src = selectedBase64;
-      photoPreview.hidden = false;
-      photoPickerText.textContent = TEXT.photoChange;
-      if (draftMarker) draftMarker.setIcon(draftIcon());
+      // Don't show or use the photo until it passes the check
+      clearPhoto();
+      photoMessage.hidden = true;
+      photoPickerText.textContent = TEXT.photoChecking;
+      photoPicker.classList.add('is-checking');
       updateConfirmState();
+
+      checkPhoto(canvas).then((allowed) => {
+        if (checkId !== photoCheckId) return; // a newer photo was picked
+        photoPicker.classList.remove('is-checking');
+        if (!allowed) {
+          clearPhoto();
+          photoMessage.textContent = TEXT.photoRejected;
+          photoMessage.hidden = false;
+          updateConfirmState();
+          return;
+        }
+        selectedBase64 = photo;
+        photoPreview.src = photo;
+        photoPreview.hidden = false;
+        photoPickerText.textContent = TEXT.photoChange;
+        if (draftMarker) draftMarker.setIcon(draftIcon());
+        updateConfirmState();
+      });
     };
     img.src = uploadEvent.target.result;
   };
@@ -714,11 +797,10 @@ function clearDraft() {
     draftMarker = null;
   }
   clearAccuracy();
-  photoInput.value = '';
-  photoPreview.hidden = true;
-  photoPreview.removeAttribute('src');
-  photoPickerText.textContent = TEXT.photoPick;
-  selectedBase64 = null;
+  photoCheckId++; // ignore any photo check still running
+  photoPicker.classList.remove('is-checking');
+  photoMessage.hidden = true;
+  clearPhoto();
   selectedCoords = null;
   $('pollutionCategory').value = '';
   $('pollutionSize').value = '';

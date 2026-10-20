@@ -22,6 +22,8 @@ const TEXT = {
   photoLabel: 'Photo',
   photoPick: 'Take or choose a photo',
   photoChange: 'Change photo',
+  photoChecking: 'Checking photo…',
+  photoRejected: 'This photo can’t be used. Please take a photo of the pollution.',
   locationLabel: 'Location',
   categoryLabel: 'Pollution type',
   categoryPlaceholder: 'Choose a type',
