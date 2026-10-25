@@ -1,7 +1,5 @@
 // ==========================================
 // ALL USER-FACING TEXT
-// Edit wording here. index.html fills elements that have
-// data-text="key" from this object, and app.js uses it for messages.
 // ==========================================
 const TEXT = {
   appName: 'Cleanly',
