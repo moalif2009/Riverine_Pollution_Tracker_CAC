@@ -1,21 +1,17 @@
-// ==========================================
-// ALL USER-FACING TEXT
-// ==========================================
+
+// user facing text is dealt w/ here b.c. all the inner text for the elements is gonna be changed anyways so we might as well 
 const TEXT = {
   appName: 'Cleanly',
   appTagline: 'Report pollution near you',
-
   legendReported: 'Reported',
   legendSent: 'Sent to agency',
   legendResolved: 'Resolved',
-
   reportBtn: 'Report pollution',
   locateBtn: 'Use my location',
   close: 'Close',
   cancel: 'Cancel',
   done: 'Done',
-
-  // New report form
+  // new report form
   newReportTitle: 'New report',
   photoLabel: 'Photo',
   photoPick: 'Take or choose a photo',
@@ -30,8 +26,7 @@ const TEXT = {
   sizeHint: 'Report problems too big for one person to clean up, not a single piece of litter.',
   submit: 'Submit report',
   saving: 'Saving…',
-
-  // Location messages
+  // location messages
   locIdle: 'Tap the map to place the pin.',
   locFinding: 'Finding your location…',
   locFound: (meters) => `Using your location (±${meters} m). Drag the pin or tap the map to adjust.`,
@@ -43,18 +38,15 @@ const TEXT = {
   locTimeout: 'Location request timed out.',
   locFailed: 'Something went wrong getting your location.',
   locFallback: 'Tap the map to place the pin.',
-
-  // Take action panel
+  // take action panel
   actionTitle: 'Take action',
   actionIntroNew: 'Report saved. Send it to someone who can act on it.',
   actionIntroExisting: 'Send this report to someone who can act on it.',
   alreadySentTo: 'Already sent to:',
   recommended: 'Recommended',
-  // (Agency buttons are in agencies.js)
   findingContacts: 'Finding who to contact here…',
   placeUnknown: 'Could not look up this location. Showing general contacts.',
   yourArea: 'your area',
-
   // Pin popups
   popupDefaultCategory: 'Pollution report',
   popupStatus: 'Status',
@@ -65,8 +57,7 @@ const TEXT = {
   popupResolve: 'Mark resolved',
   popupDelete: 'Remove',
   popupNoPhoto: 'No photo',
-
-  // Moderator dialogs
+  // moderator dialogs
   modSignInTitle: 'Moderator sign in',
   modSignInMessage: 'Only moderators can do this. Sign in with your Google account.',
   modSignInButton: 'Sign in with Google',
@@ -89,8 +80,7 @@ const TEXT = {
   discardTitle: 'Discard your report?',
   discardMessage: 'Your unfinished report will be lost.',
   discardConfirm: 'Discard',
-
-  // Toasts
+  // toasts
   saveFailed: 'Could not save the report. Please try again.',
   loadFailed: 'Could not load reports. Check your connection.',
   deleted: 'Report removed.',
@@ -105,8 +95,7 @@ const TEXT = {
   copyManualTitle: 'Copy this report',
   copyManualMessage: 'Copy the text below, then paste it into their form.',
   openSite: 'Open site',
-
-  // Text sent to agencies
+  // text sent to agencies
   // r.category and r.size are the display labels
   reportEmailSubject: (category) => `Pollution report: ${category}`,
   reportBody: (r) =>
@@ -117,33 +106,32 @@ const TEXT = {
     `Submitted through Cleanly.`
 };
 
-// Status labels. The keys are the values stored in Firestore; don't change them.
+// status labels
 const STATUS_LABELS = {
   'Reported': 'Reported',
   'Sent to agency': 'Sent to agency',
   'Resolved': 'Resolved'
 };
 
-// Pollution categories. "value" is stored in Firestore; "label" is what people see.
-// Keep the first four values as they are: existing reports use them.
-// "contacts" are the roles recommended in the Take action panel, in order
-// (see agencies.js: local, state, waterkeeper, epa, spill).
+// all the categories of pollution we consider 
+// "contacts" are the roles recommended in the take action panel, in order
 const CATEGORIES = [
-  // Water
+  // water
   { group: 'Water', value: 'Sewage / Runoff', label: 'Sewage overflow or leak', contacts: ['local', 'waterkeeper', 'state'] },
   { group: 'Water', value: 'Chemical / Discoloration', label: 'Oil, chemical, or discolored water', contacts: ['state', 'spill', 'waterkeeper'] },
   { group: 'Water', value: 'Trash in Waterway', label: 'Trash in a river, creek, or storm drain', contacts: ['waterkeeper', 'local'] },
   { group: 'Water', value: 'Construction Runoff', label: 'Muddy runoff from a construction site', contacts: ['local', 'state', 'waterkeeper'] },
   { group: 'Water', value: 'Fish Kill', label: 'Dead fish or wildlife', contacts: ['state', 'waterkeeper'] },
-  // Land
+  // land
   { group: 'Land', value: 'Illegal Dumping', label: 'Illegal dumping (tires, furniture, debris)', contacts: ['local', 'state'] },
   { group: 'Land', value: 'Plastic Waste', label: 'Large buildup of trash or plastic', contacts: ['local'] },
   { group: 'Land', value: 'Hazardous Waste', label: 'Hazardous waste (drums, batteries, paint)', contacts: ['state', 'spill', 'local'] },
-  // Air
+  // air
   { group: 'Air', value: 'Open Burning', label: 'Open burning or heavy smoke', contacts: ['state', 'local'] }
 ];
 
-// Size choices. There is deliberately no option for a single item.
+// size choices
+// single item isn't allowed because a single item isn't much of a concern to the environment, and if you're really concerned it can be easily disposed of
 const SIZES = [
   { value: 'bags', label: "A few bags' worth" },
   { value: 'truckload', label: 'A truckload or more' },
