@@ -5,20 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#1d4f66" />
   <title>Cleanly</title>
-
-  <!-- Fonts -->
+  <!-- all the external stuff  -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" />
-  <!-- Leaflet Map Styles -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- All visible text comes from text.js (data-text="key") -->
-
-  <!-- Icons (use with <svg class="icon"><use href="#i-name"/></svg>) -->
+  <!-- All visible text comes from text.js. Why? It's more convenient to just have everything there especially when its gonna get repeatedly changed anyways. -->
   <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
     <symbol id="i-logo" viewBox="0 0 24 24"><path d="M2 8.5c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0M2 13c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0M2 17.5c2.5-2 4.5-2 7 0s4.5 2 7 0 4-2 6 0"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -35,7 +30,6 @@
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5v.01"/></symbol>
   </svg>
-
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark"><svg class="icon"><use href="#i-logo"/></svg></span>
@@ -54,23 +48,16 @@
       <li><span class="badge badge-resolved"><svg class="icon"><use href="#i-check"/></svg></span><span data-text="legendResolved"></span></li>
     </ul>
   </header>
-
   <main class="app">
     <div id="map"></div>
-
     <div id="toasts" class="toasts" aria-live="polite"></div>
-
-    <!-- Moved into the map's controls by app.js -->
     <button id="locateBtn" class="locate-btn" type="button" data-label="locateBtn">
       <svg class="icon"><use href="#i-locate"/></svg>
     </button>
-
     <button id="reportBtn" class="report-btn" type="button">
       <svg class="icon"><use href="#i-plus"/></svg>
       <span data-text="reportBtn"></span>
     </button>
-
-    <!-- Bottom sheet (phones) / side panel (desktop) -->
     <aside id="sheet" class="sheet" hidden aria-labelledby="sheetTitle">
       <div class="sheet-header">
         <h2 id="sheetTitle"></h2>
@@ -78,8 +65,6 @@
           <svg class="icon"><use href="#i-close"/></svg>
         </button>
       </div>
-
-      <!-- New report form -->
       <section id="report-form" class="sheet-body">
         <div class="field">
           <span class="field-label"><span class="step">1</span><span data-text="photoLabel"></span></span>
@@ -93,7 +78,6 @@
           </label>
           <p id="photoMessage" class="field-error" role="alert" hidden></p>
         </div>
-
         <div class="field">
           <span class="field-label"><span class="step">2</span><span data-text="locationLabel"></span></span>
           <p id="locStatus" class="loc-status" role="status"></p>
@@ -102,12 +86,10 @@
             <span data-text="locateBtn"></span>
           </button>
         </div>
-
         <div class="field">
           <label class="field-label" for="pollutionCategory"><span class="step">3</span><span data-text="categoryLabel"></span></label>
           <select id="pollutionCategory" required></select>
         </div>
-
         <div class="field">
           <label class="field-label" for="pollutionSize"><span class="step">4</span><span data-text="sizeLabel"></span></label>
           <p class="field-hint" data-text="sizeHint"></p>
@@ -119,25 +101,18 @@
           <button id="confirmBtn" class="primary-btn" type="button" disabled data-text="submit"></button>
         </div>
       </section>
-
-      <!-- Take action (after saving, or from any pin) -->
       <section id="action-section" class="sheet-body" hidden>
         <p id="actionIntro" class="sheet-intro"></p>
         <div class="action-report">
           <p id="actionSummary" class="action-summary"></p>
           <p id="actionSentTo" class="action-sent-to" hidden></p>
         </div>
-
         <p id="actionPlace" class="action-place"></p>
-        <!-- Filled in by app.js from agencies.js -->
         <div class="agency-list" id="agencyList" aria-live="polite"></div>
-
         <button id="doneBtn" class="secondary-btn block" type="button" data-text="done"></button>
       </section>
     </aside>
   </main>
-
-  <!-- In-app dialog (replaces alert/prompt/confirm) -->
   <dialog id="dialog" class="dialog">
     <form method="dialog" id="dialogForm">
       <h2 id="dialogTitle"></h2>
@@ -150,17 +125,13 @@
       </div>
     </form>
   </dialog>
-
-  <!-- Leaflet Map JS -->
+  <!-- couple more external files (honestly i don't like using leaflet but the backend is a bit vibecoded and models have a weird habit of using it its really annoying) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Firebase App & Firestore SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics-compat.js"></script>
-
-  <!-- App text, then main app logic -->
+  <!-- text and then the actuall app logic -->
   <script src="text.js"></script>
   <script src="agencies.js"></script>
   <script src="app.js"></script>
