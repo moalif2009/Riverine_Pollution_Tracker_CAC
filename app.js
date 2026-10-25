@@ -1,5 +1,5 @@
 // ==========================================
-// YOUR FIREBASE CONFIGURATION
+// FIREBASE CONFIGURATION
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyB-1NCjWQQWjtzfyMdUFplhYHsw9dHZCKQ",
