@@ -3,8 +3,6 @@ Tracks riverine pollution and maps it digitally on a map.
 
 This is our submission for the Congressional App Challenge 2026. 
 
-Work in Progress
-
 
 
 Old website:
@@ -30,5 +28,5 @@ or delete it; the rules in `firestore.rules` enforce this.
 6. **Apply the rules:** Firestore Database → Rules → paste `firestore.rules`
    → Publish.
 
-To add another moderator, they do step 3, then you repeat steps 4–5 with
+To add another moderator, do step 3, then repeat steps 4–5 with
 their UID. To remove one, delete their document in `admins`.
